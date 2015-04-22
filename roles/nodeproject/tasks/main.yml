@@ -1,0 +1,15 @@
+# Uses vars:
+# repo - the URL of the repo to build
+# dir - the name of the directory under /home/source
+
+- name: sync to latest code
+  git: >
+    repo={{ repo }}
+    dest=/home/source/{{ dir }}
+  register: sync
+- name: update to current npm depenencies
+  npm: path=/home/source/pencilcode
+  register: install
+- name: rebuild {{ dir }}
+  script: npm run build chdir=/home/source/{{ dir }}
+  when: sync|changed or install|changed

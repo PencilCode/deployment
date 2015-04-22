@@ -1,0 +1,25 @@
+- name: Build pencilcode code
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+  sudo_user: source
+  roles:
+    - role: nodeproject
+      repo: https://github.com/PencilCode/pencilcode.git
+      dir: pencilcode
+    - role: nodeproject
+      repo: https://github.com/PencilCode/pencilcode.git
+      dir: staging
+    - role: nodeproject
+      repo: https://github.com/PencilCode/fish.git
+      dir: fish
+    - role: nodeproject
+      repo: https://github.com/PencilCode/codegym.git
+      dir: codegym
+    - role: nodeproject
+      repo: https://github.com/PencilCode/blog.git
+      dir: blog
+    - role: nodeproject
+      repo: https://github.com/PencilCode/reference.git
+      dir: reference
+
