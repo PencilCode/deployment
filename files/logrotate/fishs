@@ -1,0 +1,9 @@
+"/var/log/fishs/*.log" "/var/log/fishs/*/*.log" {
+  copytruncate
+  daily
+  rotate 5
+  compress
+  delaycompress
+  missingok
+  notifempty
+}
