@@ -1,0 +1,259 @@
+# Deploy a pencilcode web server
+
+- name: Set up unix user accounts
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+
+  tasks:
+    - name: Create source user
+      user: name=source uid=1100 group=users
+
+    - name: Fix sudoers file to allow sudo -u
+      replace: >
+        dest=/etc/sudoers
+        regexp='^(\w+) ALL=NOPASSWD: ALL$'
+        replace='\1 ALL=(ALL) NOPASSWD: ALL'
+        validate='visudo -cf %s'
+
+
+- name: Install standard packages
+  hosts: tag_webserver
+  gather_facts: no
+  connection: ssh
+  sudo: yes
+
+  tasks:
+    - name: Install https support for apt
+      apt: name=apt-transport-https update_cache=yes
+
+    - name: Add nodesource signing key
+      apt_key: >
+        url=https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+        id=68576280
+
+    - name: Add nodesource apt repository
+      apt_repository: >
+        repo='deb https://deb.nodesource.com/node_0.12 wheezy main'
+
+    - name: Install apt packages
+      apt: pkg={{ item }} state=latest
+      with_items:
+        - build-essential
+        - uwsgi-plugin-python
+        - nodejs
+        - git
+        - libfontconfig1
+        - logrotate
+        - vim
+        - bash-completion
+
+    - name: Install nginx
+      apt: name=nginx state=latest default_release=wheezy-backports
+
+    - name: Remove nginx default website
+      file: path=/etc/nginx/sites-enabled/default state=absent
+
+    - name: Install global npm packages
+      npm: name={{ item }} global=yes production=yes
+      with_items:
+        - grunt-cli
+        - forever
+
+
+- name: Pull and build project code
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+  roles:
+    - role: nodeproject
+      repo: https://github.com/PencilCode/pencilcode.git
+      dir: pencilcode
+      tags: pull_pencilcode
+    - role: nodeproject
+      repo: https://github.com/PencilCode/pencilcode.git
+      dir: staging
+      tags: pull_staging
+    - role: nodeproject
+      repo: https://github.com/davidbau/pencilcode.git
+      dir: experiment
+      tags: pull_experiment
+    - role: nodeproject
+      repo: https://github.com/PencilCode/codegym.git
+      dir: gym 
+      tags: pull_gym
+    - role: nodeproject
+      repo: https://github.com/PencilCode/blog.git
+      dir: blog
+      tags: pull_blog
+    - role: nodeproject
+      repo: https://github.com/PencilCode/reference.git
+      dir: ref
+      tags: pull_ref
+    - role: nodeproject
+      repo: https://github.com/PencilCode/animate.git
+      dir: animate
+      tags: pull_animate
+
+
+- name: Link pencilcode service directories
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+  vars_files:
+    - vars/secrets.yml
+
+  roles:
+    - role: topdomain
+      domain_dir: pencilcode.org
+      source_dir: pencilcode
+    - role: topdomain
+      domain_dir: pencil.cc
+      source_dir: staging
+      domain_ssl_key: "{{ pencilcc_ssl_key }}"
+      domain_ssl_file: pencilcc
+    - role: topdomain
+      domain_dir: pencil.codes
+      source_dir: experiment
+    - role: topdomain
+      domain_dir: pencil.io
+      source_dir: pencilcode
+
+  tasks:
+    - file: path=/srv/site state=directory mode=755
+    - file: dest=/srv/site/{{ item }} state=link src=/home/source/{{ item }}/out
+      with_items:
+        - animate
+        - blog
+        - gym
+        - ref
+
+- name: Setup fishs service
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+  roles:
+    - role: nodeproject
+      repo: https://github.com/PencilCode/fish.git
+      dir: fish
+      tags: pull_fish
+  tasks:
+    - file: path=/srv/fish state=directory mode=755
+    - file: state=link dest=/srv/fish/{{ item }} src=/home/source/{{ item }}
+      with_items:
+        - experiment
+        - staging
+        - animate
+        - blog
+        - gym
+        - ref
+        - fish
+
+    - name: Install fishs service
+      file: dest=/etc/init.d/fishs state=link
+        src=/srv/fish/fish/fishs
+      notify: restart fishs
+    - file: path=/var/log/fishs state=directory mode=755
+
+  handlers:
+    - name: restart fishs
+      service: name=fishs state=restarted
+
+
+- name: Setup main pencilcode repository
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+  vars_files:
+    - vars/secrets.yml
+
+  roles:
+    - role: nodeproject
+      repo: https://github.com/PencilCode/pencilcode.git
+      dir: pencilcode
+      tags: pull_pencilcode
+      notify:
+        - restart nginx
+        - restart pencils
+        - restart pencilsock
+    - role: topdomain
+      domain_dir: pencilcode.net
+      source_dir: pencilcode
+      domain_ssl_key: "{{ pencilcode_ssl_key }}"
+      domain_ssl_file: pencilcode
+
+  tasks:
+    - file: path=/mnt/datadisk/cache state=directory mode=755
+    - file: path=/mnt/datadisk/data state=directory mode=755
+
+    - name: Link /srv/site/root to pencilcode source
+      file: dest=/srv/site/root state=link
+        src=/home/source/pencilcode
+
+    - name: Install nginx_site.conf
+      file: state=link
+        dest=/etc/nginx/sites-available/nginx_site.conf
+        src=/srv/site/root/nginx/nginx_site.conf
+      notify:
+        - restart nginx
+    - name: Enable nginx_site.conf
+      file: state=link
+        dest=/etc/nginx/sites-enabled/nginx_site.conf
+        src=/etc/nginx/sites-available/nginx_site.conf
+      notify:
+        - restart nginx
+
+    - name: Install pencils service
+      file: dest=/etc/init.d/pencils state=link
+        src=/srv/site/root/pencils
+      notify:
+        - restart pencils
+    - file: path=/var/log/pencils state=directory mode=755
+
+    - name: Install pencilsock service
+      file: dest=/etc/init.d/pencilsock state=link
+        src=/srv/site/root/pencilsock
+      notify:
+        - restart pencilsock
+    - file: path=/var/log/pencilsock state=directory mode=755
+
+  handlers:
+    - name: restart nginx
+      service: name=nginx state=restarted
+
+    - name: restart pencilsock
+      service: name=pencilsock state=restarted
+
+    - name: restart pencils
+      service: name=pencils state=restarted
+
+- name: Set up logrotate configuration
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+
+  tasks:
+    - copy: src=files/logrotate/{{ item }} dest=/etc/logrotate.d/{{ item }}
+      with_items:
+       - nginx
+       - pencilsock
+       - pencils
+       - fishs
+
+  handlers:
+    - name: restart logrotate
+      service: name=logrotate state=restarted
+
+- name: Ensure all services are started
+  hosts: tag_webserver
+  connection: ssh
+  sudo: yes
+
+  tasks:
+    - name: start services
+      service: name={{ item }} state=started
+      with_items:
+        - nginx
+        - pencilsock
+        - pencils
+        - fishs

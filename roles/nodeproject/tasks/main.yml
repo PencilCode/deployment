@@ -1,15 +1,21 @@
 # Uses vars:
 # repo - the URL of the repo to build
 # dir - the name of the directory under /home/source
+# force_build - true to rebuild everything
 
-- name: sync to latest code
+- name: sync {{ dir }} to latest code
   git: >
     repo={{ repo }}
     dest=/home/source/{{ dir }}
+  sudo_user: source
   register: sync
-- name: update to current npm depenencies
-  npm: path=/home/source/pencilcode
+- name: update {{ dir }} to current npm depenencies
+  npm: path=/home/source/{{ dir }}
+  sudo_user: source
   register: install
 - name: rebuild {{ dir }}
-  script: npm run build chdir=/home/source/{{ dir }}
-  when: sync|changed or install|changed
+  command: npm run build
+  sudo_user: source
+  args:
+    chdir: /home/source/{{ dir }}
+  when: sync|changed or install|changed or force_build

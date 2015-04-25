@@ -1,0 +1,22 @@
+# Variables:
+# domain_dir - the domain name, like pencilcode.net.
+# source_dir - the source directory mapped to this domain.
+# domain_ssl_key - the secret key file contents.
+# domain_ssl_file - the secret key file base name; will add .key and .crt.
+
+- file: path=/srv/{{ domain_dir }} state=directory mode=755
+- file: dest=/srv/{{ domain_dir }}/cache state=link src=/mnt/datadisk/cache
+- file: dest=/srv/{{ domain_dir }}/data state=link src=/mnt/datadisk/data
+- file: dest=/srv/{{ domain_dir }}/content state=link
+    src=/home/source/{{ source_dir }}/content
+- file: path=/srv/{{ domain_dir }}/key state=directory mode=755
+- copy:
+    content: "{{ domain_ssl_key }}"
+    dest: /srv/{{ domain_dir }}/key/{{ domain_ssl_file }}.key
+    mode: 400
+    owner: www-data
+  when: domain_ssl_key is defined
+- copy: src=files/{{ item }} dest=/srv/{{ domain_dir }}/key/ mode=444
+  with_items: [ '{{ domain_ssl_file }}.crt', 'bundle.crt', 'dh2048.pem' ]
+  when: domain_ssl_file is defined
+

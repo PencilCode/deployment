@@ -56,6 +56,14 @@
       add_host: hostname={{ item.public_ip }} groupname=launched
       with_items: gce.instance_data
 
+    - name: reset known-hosts for ips
+      command: ssh-keygen -R {{ item.public_ip }}
+      with_items: gce.instance_data
+
+    - name: reset known-hosts for names
+      command: ssh-keygen -R {{ item.name }}
+      with_items: gce.instance_data
+
 - name: Set up disks
   hosts: launched
   connection: ssh
