@@ -4,6 +4,7 @@
   connection: local
 
   vars:
+    machine_name: ansible
     machine_type: f1-micro
     image: backports-debian-7-wheezy
     service_account_email: 670662678080-v4dlk7smudbfr0rbc2n5mcb2mnsdbqpb@developer.gserviceaccount.com
@@ -13,7 +14,7 @@
   tasks:
     - name: Launch instances
       gce:
-          instance_names: ansible
+          instance_names: "{{ machine_name }}"
           machine_type: "{{ machine_type }}"
           image: "{{ image }}"
           service_account_email: "{{ service_account_email }}"
@@ -84,9 +85,23 @@
         - ansible
         - apache-libcloud
 
+    - name: copy ssh key
+      sudo: no
+      copy: src=/home/{{ ansible_ssh_user }}/.ssh/id_rsa mode=400
+           dest=/home/{{ ansible_ssh_user }}/.ssh/id_rsa
+
+    - name: ensure github.com is a known host
+      sudo: no
+      lineinfile:
+        dest: /home/{{ ansible_ssh_user }}/.ssh/known_hosts
+        create: yes
+        state: present
+        line: "{{ lookup('pipe', 'ssh-keyscan -t rsa github.com') }}"
+        regexp: "^github\\.com"
+
     - name: sync {{ dir }} to latest code
       git: >
-        repo=https://github.com/PencilCode/deployment.git
+        repo=git@github.com:PencilCode/deployment.git
         dest=/home/{{ ansible_ssh_user }}/deployment
       sudo_user: "{{ ansible_ssh_user }}"
 
@@ -108,8 +123,5 @@
        - .ansible.cfg
        - .ansible_vault_password
        - .ssh/id_rsa.pub
+       - .gitconfig
 
-    - name: copy ssh key
-      sudo: no
-      copy: src=/home/{{ ansible_ssh_user }}/.ssh/id_rsa mode=400
-           dest=/home/{{ ansible_ssh_user }}/.ssh/id_rsa
