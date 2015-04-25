@@ -1,0 +1,115 @@
+- name: Create instance(s)
+  hosts: localhost
+  gather_facts: no
+  connection: local
+
+  vars:
+    machine_type: f1-micro
+    image: backports-debian-7-wheezy
+    service_account_email: 670662678080-v4dlk7smudbfr0rbc2n5mcb2mnsdbqpb@developer.gserviceaccount.com
+    pem_file: /etc/ansible/keys/service-key.pem
+    project_id: paris-code
+
+  tasks:
+    - name: Launch instances
+      gce:
+          instance_names: ansible
+          machine_type: "{{ machine_type }}"
+          image: "{{ image }}"
+          service_account_email: "{{ service_account_email }}"
+          pem_file: "{{ pem_file }}"
+          project_id: "{{ project_id }}"
+          tags: ansible
+      register: gce
+
+    - name: Wait for SSH to come up
+      wait_for: host={{ item.public_ip }} port=22 delay=5 timeout=60
+      with_items: gce.instance_data
+
+    - name: Add host to groupname
+      add_host: hostname={{ item.public_ip }} groupname=launched
+      with_items: gce.instance_data
+
+    - name: reset known-hosts for ips
+      command: ssh-keygen -R {{ item.public_ip }}
+      with_items: gce.instance_data
+
+    - shell: ssh-keyscan -H {{ item.public_ip }} >> ~/.ssh/known_hosts
+      with_items: gce.instance_data
+
+    - name: reset known-hosts for names
+      command: ssh-keygen -R {{ item.name }}
+      with_items: gce.instance_data
+
+    - shell: ssh-keyscan -H {{ item.name }} >> ~/.ssh/known_hosts
+      with_items: gce.instance_data
+
+- name: Set up machines
+  hosts: launched
+  connection: ssh
+  sudo: yes
+
+  vars_files:
+    - vars/secrets.yml
+
+  tasks:
+    - name: Install https support for apt
+      apt: name=apt-transport-https update_cache=yes
+
+    - name: Add nodesource signing key
+      apt_key: >
+        url=https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+        id=68576280
+
+    - name: Add nodesource apt repository
+      apt_repository: >
+        repo='deb https://deb.nodesource.com/node_0.12 wheezy main'
+
+    - name: Install apt packages
+      apt: pkg={{ item }} state=latest
+      with_items:
+        - build-essential
+        - python-setuptools
+        - nodejs
+        - git
+        - vim
+        - bash-completion
+
+    - name: Install pip
+      easy_install: name=pip
+
+    - name: Install ansible
+      pip: name={{ item }}
+      with_items:
+        - ansible
+        - apache-libcloud
+
+    - name: sync {{ dir }} to latest code
+      git: >
+        repo=https://github.com/PencilCode/deployment.git
+        dest=/home/{{ ansible_ssh_user }}/deployment
+      sudo_user: "{{ ansible_ssh_user }}"
+
+    - file: path=/etc/ansible state=directory
+
+    - name: set up gce configruation
+      copy: src=files/gce.py dest=/etc/ansible/hosts mode=755
+    - copy: src=files/gce.ini dest=/etc/ansible/gce.ini
+    - file: path=/etc/ansible/keys state=directory
+    - copy:
+        content: "{{ gce_service_key }}"
+        dest: /etc/ansible/keys/service-key.pem
+
+    - name: set up ansible defaults
+      sudo: no
+      copy: src=/home/{{ ansible_ssh_user }}/{{ item }}
+           dest=/home/{{ ansible_ssh_user }}/{{ item }}
+      with_items:
+       - .ansible.cfg
+       - .ansible_vault_password
+       - .ssh/id_rsa.pub
+
+    - name: copy ssh key
+      sudo: no
+      copy: src=/home/{{ ansible_ssh_user }}/.ssh/id_rsa mode=400
+           dest=/home/{{ ansible_ssh_user }}/.ssh/id_rsa
