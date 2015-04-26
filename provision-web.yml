@@ -36,18 +36,6 @@
           zone: "{{ item.zone }}"
       with_items: gce.instance_data
 
-    - name: Create data disks
-      gce_pd:
-          name: "{{ item.name }}-data-1"
-          instance_name: "{{ item.name }}"
-          mode: READ_WRITE
-          size_gb: 10
-          service_account_email: "{{ service_account_email }}"
-          pem_file: "{{ pem_file }}"
-          project_id: "{{ project_id }}"
-          zone: "{{ item.zone }}"
-      with_items: gce.instance_data
-
     - name: Wait for SSH to come up
       wait_for: host={{ item.public_ip }} port=22 delay=5 timeout=60
       with_items: gce.instance_data
@@ -83,12 +71,6 @@
         dev=/dev/disk/by-id/google-{{ ansible_hostname }}-log-1
         opts="-E lazy_itable_init=0,lazy_journal_init=0"
 
-    - name: Set up filesystem for data disks
-      filesystem: >
-        fstype=ext4
-        dev=/dev/disk/by-id/google-{{ ansible_hostname }}-data-1
-        opts="-E lazy_itable_init=0,lazy_journal_init=0"
-
     - name: Mount log disks
       mount: >
         name=/var/log
@@ -97,12 +79,17 @@
         state=mounted
       notify: restart rsyslog
 
-    - name: Mount data disks
+    - name: install nfs client
+      apt: pkg=nfs-common state=present
+
+    - name: Mount data disk
       mount: >
         name=/mnt/datadisk
-        fstype=ext4
-        src=/dev/disk/by-id/google-{{ ansible_hostname }}-data-1
+        fstype=nfs
+        src=nfs:/data
+        opts=rw,sync,nfsvers=3
         state=mounted
+
   handlers:
     - name: restart rsyslog
       service: name=rsyslog state=restarted
