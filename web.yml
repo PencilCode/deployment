@@ -7,7 +7,7 @@
 
   tasks:
     - name: Create source user
-      user: name=source uid=1100 group=users
+      user: name=source uid=1100 group=users shell=/bin/bash
 
     - name: Fix sudoers file to allow sudo -u
       replace: >
@@ -25,7 +25,7 @@
 
   tasks:
     - name: Install https support for apt
-      apt: name=apt-transport-https update_cache=yes
+      apt: name=apt-transport-https
 
     - name: Add nodesource signing key
       apt_key: >
@@ -36,10 +36,20 @@
       apt_repository: >
         repo='deb https://deb.nodesource.com/node_0.12 wheezy main'
 
+    - name: Add nginx signing key
+      apt_key: >
+        data="{{ lookup('file', 'files/nginx_signing_key.key') }}"
+        id=7BD9BF62
+
+    - name: Add nginx apt repository
+      apt_repository: >
+        repo='deb http://nginx.org/packages/mainline/debian wheezy nginx'
+
     - name: Install apt packages
       apt: pkg={{ item }} state=latest
       with_items:
         - build-essential
+        - nginx
         - uwsgi
         - uwsgi-plugin-python
         - nodejs
@@ -49,17 +59,34 @@
         - vim
         - bash-completion
 
-    - name: Install nginx
-      apt: name=nginx state=latest default_release=wheezy-backports
+    - name: Create apache-style nginx configuration directories
+      file: path={{ item }} state=directory
+      with_items:
+       - /etc/nginx/sites-enabled
+       - /etc/nginx/sites-available
+
+    - name: Replace nginx top-level configuration, to run as www-data
+      copy: src=files/nginx.conf dest=/etc/nginx/nginx.conf
+      notify:
+        - restart nginx
 
     - name: Remove nginx default website
-      file: path=/etc/nginx/sites-enabled/default state=absent
+      file: path={{ item }} state=absent
+      with_items:
+       - /etc/nginx/sites-enabled/default
+       - /etc/nginx/conf.d
+      notify:
+        - restart nginx
 
     - name: Install global npm packages
       npm: name={{ item }} global=yes production=yes
       with_items:
         - grunt-cli
         - forever
+
+  handlers:
+    - name: restart nginx
+      service: name=nginx state=restarted
 
 
 - name: Pull and build project code
@@ -110,12 +137,11 @@
       with_items:
         - cache
         - data
-        - proxycache
 
     - file: path=/srv/site state=directory mode=755
-    - name: Link /srv/site/proxycache to storage
-      file: dest=/srv/site/proxycache state=link
-        src=/mnt/datadisk/proxycache
+    - name: Create /srv/site/proxycache
+      file: path=/srv/site/proxycache state=directory
+            owner=www-data group=www-data
 
   roles:
     - role: topdomain

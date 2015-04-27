@@ -22,7 +22,6 @@
           tags: webserver
       register: gce
 
-    - debug: msg="instance data {{ gce.instance_data }}"
 
     - name: Create log disks
       gce_pd:
@@ -35,6 +34,25 @@
           project_id: "{{ project_id }}"
           zone: "{{ item.zone }}"
       with_items: gce.instance_data
+
+    - name: Assemble qualified instance names
+      shell: echo {{ item.zone }}/{{ item.name }}
+      with_items: gce.instance_data
+      register: qnames
+
+    - name: Create load balancing rule
+      gce_lb:
+        name: lb
+        external_ip: pencilcode-ip
+        region: us-central1
+        members: "{{ qnames.results|map(attribute='stdout')|list }}"
+        httphealthcheck_name: lb-check
+        httphealthcheck_host: pencil.io
+        httphealthcheck_port: 80
+        httphealthcheck_path: "/load/first"
+        service_account_email: "{{ service_account_email }}"
+        pem_file: "{{ pem_file }}"
+        project_id: "{{ project_id }}"
 
     - name: Wait for SSH to come up
       wait_for: host={{ item.public_ip }} port=22 delay=5 timeout=60
@@ -93,3 +111,4 @@
   handlers:
     - name: restart rsyslog
       service: name=rsyslog state=restarted
+
