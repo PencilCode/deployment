@@ -1,0 +1,171 @@
+- name: Create instance(s)
+  hosts: localhost
+  gather_facts: no
+  connection: local
+
+  vars:
+    machine_type: n1-standard-1 # default
+    image: backports-debian-7-wheezy
+    service_account_email: 670662678080-v4dlk7smudbfr0rbc2n5mcb2mnsdbqpb@developer.gserviceaccount.com
+    pem_file: /etc/ansible/keys/service-key.pem
+    project_id: paris-code
+
+  tasks:
+    - name: Launch instances
+      gce:
+          instance_names: loadtest1
+          machine_type: "{{ machine_type }}"
+          image: "{{ image }}"
+          service_account_email: "{{ service_account_email }}"
+          pem_file: "{{ pem_file }}"
+          project_id: "{{ project_id }}"
+          tags: loadtest
+      register: gce
+
+    - name: Open port 8089 for locust UI
+      gce_net:
+          name: default
+          fwname: locust
+          allowed: tcp:8089
+          target_tags: ['loadtest']
+          service_account_email: "{{ service_account_email }}"
+          pem_file: "{{ pem_file }}"
+          project_id: "{{ project_id }}"
+
+    - name: Wait for SSH to come up
+      wait_for: host={{ item.public_ip }} port=22 delay=5 timeout=60
+      with_items: gce.instance_data
+
+    - name: Add host to groupname
+      add_host: hostname={{ item.public_ip }} groupname=launched
+      with_items: gce.instance_data
+
+    - name: reset known-hosts for ips
+      command: ssh-keygen -R {{ item.public_ip }}
+      with_items: gce.instance_data
+
+    - name: registering new known-host for ips
+      shell: ssh-keyscan -H {{ item.public_ip }} >> ~/.ssh/known_hosts
+      with_items: gce.instance_data
+
+    - name: reset known-hosts for names
+      command: ssh-keygen -R {{ item.name }}
+      with_items: gce.instance_data
+
+    - name: registering new known-host for names
+      shell: ssh-keyscan -H {{ item.name }} >> ~/.ssh/known_hosts
+      with_items: gce.instance_data
+
+- name: Set up disks
+  hosts: launched
+  connection: ssh
+  sudo: yes
+  tasks:
+    - name: install nfs client
+      apt: pkg=nfs-common state=present
+
+    - name: Mount data disk
+      mount: >
+        name=/mnt/datadisk
+        fstype=nfs
+        src=nfs:/data
+        opts=rw,sync,nfsvers=3
+        state=mounted
+
+
+- name: Set up unix user accounts
+  hosts: launched
+  connection: ssh
+  sudo: yes
+
+  tasks:
+    - name: Create source user
+      user: name=source uid=1100 group=users shell=/bin/bash
+
+    - name: Fix sudoers file to allow sudo -u
+      replace: >
+        dest=/etc/sudoers
+        regexp='^(\w+) ALL=NOPASSWD: ALL$'
+        replace='\1 ALL=(ALL) NOPASSWD: ALL'
+        validate='visudo -cf %s'
+
+    - name: Set up high open file limit
+      copy: src=files/manyfiles.conf
+           dest=/etc/security/limits.d/manyfiles.conf
+
+
+- name: Set up machine
+  hosts: launched
+  gather_facts: no
+  connection: ssh
+  sudo: yes
+
+  vars_files:
+    - vars/secrets.yml
+
+  tasks:
+    - name: Install https support for apt
+      apt: name=apt-transport-https
+
+    - name: Add nodesource signing key
+      apt_key: >
+        url=https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+        id=68576280
+
+    - name: Add nodesource apt repository
+      apt_repository: >
+        repo='deb https://deb.nodesource.com/node_0.12 wheezy main'
+
+    - name: Install apt packages
+      apt: pkg={{ item }} state=latest
+      with_items:
+        - build-essential
+        - python-setuptools
+        - python-dev
+        - nodejs
+        - git
+        - libfontconfig1
+        - vim
+        - bash-completion
+
+    - name: Install python packages
+      easy_install: name={{ item }}
+      with_items:
+        - pip
+        - locustio
+        - pyzmq
+        - simplejson
+
+    - name: Install global npm packages
+      npm: name={{ item }} global=yes production=yes
+      with_items:
+        - grunt-cli
+
+    - name: copy ssh key
+      sudo: no
+      copy: src=/home/{{ ansible_ssh_user }}/.ssh/id_rsa mode=400
+           dest=/home/{{ ansible_ssh_user }}/.ssh/id_rsa
+
+    - name: ensure github.com is a known host
+      sudo: no
+      lineinfile:
+        dest: /home/{{ ansible_ssh_user }}/.ssh/known_hosts
+        create: yes
+        state: present
+        line: "{{ lookup('pipe', 'ssh-keyscan -t rsa github.com') }}"
+        regexp: "^github\\.com"
+
+    - name: copy git settings
+      sudo: no
+      copy: src=/home/{{ ansible_ssh_user }}/{{ item }}
+           dest=/home/{{ ansible_ssh_user }}/{{ item }}
+      with_items:
+       - .ssh/id_rsa.pub
+       - .gitconfig
+
+    - name: sync {{ dir }} to latest code
+      git: >
+        repo=git@github.com:PencilCode/pencilcode.git
+        dest=/home/{{ ansible_ssh_user }}/pencilcode
+      sudo_user: "{{ ansible_ssh_user }}"
+
