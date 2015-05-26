@@ -9,6 +9,15 @@
     dest=/home/source/{{ dir }}
   sudo_user: source
   register: sync
+  when: version is not defined
+- name: sync {{ dir }} to latest code
+  git: >
+    repo={{ repo }}
+    dest=/home/source/{{ dir }}
+    version={{ version }}
+  sudo_user: source
+  register: sync
+  when: version is defined
 - name: update {{ dir }} to current npm depenencies
   npm: path=/home/source/{{ dir }}
   sudo_user: source
