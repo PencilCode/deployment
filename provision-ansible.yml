@@ -6,7 +6,7 @@
   vars:
     machine_name: ansible
     machine_type: f1-micro
-    image: backports-debian-7-wheezy
+    image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1404-trusty-v20161213
     service_account_email: 670662678080-v4dlk7smudbfr0rbc2n5mcb2mnsdbqpb@developer.gserviceaccount.com
     pem_file: /etc/ansible/keys/service-key.pem
     project_id: paris-code
@@ -48,7 +48,7 @@
 - name: Set up machines
   hosts: launched
   connection: ssh
-  sudo: yes
+  become: yes
 
   vars_files:
     - vars/secrets.yml
@@ -59,7 +59,7 @@
 
     - name: Add nodesource signing key
       apt_key: >
-        url=https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+        url=https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
         id=68576280
 
     - name: Add nodesource apt repository
@@ -71,6 +71,9 @@
       with_items:
         - build-essential
         - python-setuptools
+        - python-dev
+        - libssl-dev
+        - libffi-dev
         - nodejs
         - git
         - vim
@@ -86,12 +89,12 @@
         - apache-libcloud
 
     - name: copy ssh key
-      sudo: no
+      become: no
       copy: src=/home/{{ ansible_ssh_user }}/.ssh/id_rsa mode=400
            dest=/home/{{ ansible_ssh_user }}/.ssh/id_rsa
 
     - name: ensure github.com is a known host
-      sudo: no
+      become: no
       lineinfile:
         dest: /home/{{ ansible_ssh_user }}/.ssh/known_hosts
         create: yes
@@ -103,7 +106,7 @@
       git: >
         repo=git@github.com:PencilCode/deployment.git
         dest=/home/{{ ansible_ssh_user }}/deployment
-      sudo_user: "{{ ansible_ssh_user }}"
+      become_user: "{{ ansible_ssh_user }}"
 
     - file: path=/etc/ansible state=directory
 
@@ -116,7 +119,7 @@
         dest: /etc/ansible/keys/service-key.pem
 
     - name: set up ansible defaults
-      sudo: no
+      become: no
       copy: src=/home/{{ ansible_ssh_user }}/{{ item }}
            dest=/home/{{ ansible_ssh_user }}/{{ item }}
       with_items:
