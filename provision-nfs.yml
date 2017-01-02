@@ -5,7 +5,7 @@
 
   vars:
     machine_type: n1-standard-1 # default
-    image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1404-trusty-v20161213
+    image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20161221
     service_account_email: 670662678080-v4dlk7smudbfr0rbc2n5mcb2mnsdbqpb@developer.gserviceaccount.com
     pem_file: /etc/ansible/keys/service-key.pem
     project_id: paris-code

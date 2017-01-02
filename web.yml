@@ -35,7 +35,7 @@
 
     - name: Add nodesource apt repository
       apt_repository: >
-        repo='deb https://deb.nodesource.com/node_6.x trusty main'
+        repo='deb https://deb.nodesource.com/node_6.x xenial main'
 
     - name: Add nginx signing key
       apt_key: >
@@ -44,7 +44,7 @@
 
     - name: Add nginx apt repository
       apt_repository: >
-        repo='deb http://nginx.org/packages/mainline/ubuntu trusty nginx'
+        repo='deb http://nginx.org/packages/mainline/ubuntu xenial nginx'
 
     - name: Install apt packages
       apt: pkg={{ item }} state=latest
