@@ -32,7 +32,7 @@
           pem_file: "{{ pem_file }}"
           project_id: "{{ project_id }}"
           zone: "{{ item.zone }}"
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: Create data disks
       gce_pd:
@@ -45,7 +45,7 @@
           pem_file: "{{ pem_file }}"
           project_id: "{{ project_id }}"
           zone: "{{ item.zone }}"
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: Create backup disk
       gce_pd:
@@ -57,36 +57,36 @@
           pem_file: "{{ pem_file }}"
           project_id: "{{ project_id }}"
           zone: "{{ item.zone }}"
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: Wait for SSH to come up
       wait_for: host={{ item.public_ip }} port=22 delay=5 timeout=60
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: Add host to groupname
       add_host: hostname={{ item.public_ip }} groupname=launched
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: reset known-hosts for ips
       command: ssh-keygen -R {{ item.public_ip }}
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: registering new known-host for ips
       shell: ssh-keyscan -H {{ item.public_ip }} >> ~/.ssh/known_hosts
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: reset known-hosts for names
       command: ssh-keygen -R {{ item.name }}
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: registering new known-host for names
       shell: ssh-keyscan -H {{ item.name }} >> ~/.ssh/known_hosts
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
 - name: Set up disks
   hosts: launched
   connection: ssh
-  sudo: yes
+  become: yes
   tasks:
     - name: Set up filesystem for log disks
       filesystem: >
@@ -151,7 +151,7 @@
   hosts: launched
   connection: ssh
   gather_facts: no
-  sudo: yes
+  become: yes
 
   roles:
     - role: geerlingguy.nfs
@@ -163,7 +163,7 @@
   hosts: launched
   connection: ssh
   gather_facts: no
-  sudo: yes
+  become: yes
   
   tasks:
     - name: Install rsnapshot

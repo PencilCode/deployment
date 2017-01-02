@@ -25,25 +25,25 @@
 
     - name: Wait for SSH to come up
       wait_for: host={{ item.public_ip }} port=22 delay=5 timeout=60
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: Add host to groupname
       add_host: hostname={{ item.public_ip }} groupname=launched
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: reset known-hosts for ips
       command: ssh-keygen -R {{ item.public_ip }}
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - shell: ssh-keyscan -H {{ item.public_ip }} >> ~/.ssh/known_hosts
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - name: reset known-hosts for names
       command: ssh-keygen -R {{ item.name }}
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
     - shell: ssh-keyscan -H {{ item.name }} >> ~/.ssh/known_hosts
-      with_items: gce.instance_data
+      with_items: "{{ gce.instance_data }}"
 
 - name: Set up machines
   hosts: launched
@@ -53,9 +53,15 @@
   vars_files:
     - vars/secrets.yml
 
+  vars:
+    - user_used: "{{ansible_user|default(lookup('env', 'USER'), True) }}"
+
   tasks:
     - name: Install https support for apt
       apt: name=apt-transport-https update_cache=yes
+
+    - name: upgrade apt packages to the latest version
+      apt: upgrade=dist
 
     - name: Add nodesource signing key
       apt_key: >
@@ -93,13 +99,13 @@
 
     - name: copy ssh key
       become: no
-      copy: src=/home/{{ ansible_ssh_user }}/.ssh/id_rsa mode=400
-           dest=/home/{{ ansible_ssh_user }}/.ssh/id_rsa
+      copy: src=/home/{{ user_used }}/.ssh/id_rsa mode=400
+           dest=/home/{{ user_used }}/.ssh/id_rsa
 
     - name: ensure github.com is a known host
       become: no
       lineinfile:
-        dest: /home/{{ ansible_ssh_user }}/.ssh/known_hosts
+        dest: /home/{{ user_used }}/.ssh/known_hosts
         create: yes
         state: present
         line: "{{ lookup('pipe', 'ssh-keyscan -t rsa github.com') }}"
@@ -108,8 +114,8 @@
     - name: sync {{ dir }} to latest code
       git: >
         repo=git@github.com:PencilCode/deployment.git
-        dest=/home/{{ ansible_ssh_user }}/deployment
-      become_user: "{{ ansible_ssh_user }}"
+        dest=/home/{{ user_used }}/deployment
+      become_user: "{{ user_used }}"
 
     - file: path=/etc/ansible state=directory
 
@@ -123,8 +129,8 @@
 
     - name: set up ansible defaults
       become: no
-      copy: src=/home/{{ ansible_ssh_user }}/{{ item }}
-           dest=/home/{{ ansible_ssh_user }}/{{ item }}
+      copy: src=/home/{{ user_used }}/{{ item }}
+           dest=/home/{{ user_used }}/{{ item }}
       with_items:
        - .ansible.cfg
        - .ansible_vault_password

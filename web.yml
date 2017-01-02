@@ -3,7 +3,7 @@
 - name: Set up unix user accounts
   hosts: tag_webserver
   connection: ssh
-  sudo: yes
+  become: yes
 
   tasks:
     - name: Create source user
@@ -21,11 +21,14 @@
   hosts: tag_webserver
   gather_facts: no
   connection: ssh
-  sudo: yes
+  become: yes
 
   tasks:
     - name: Install https support for apt
       apt: name=apt-transport-https
+
+    - name: upgrade apt packages to the latest version
+      apt: upgrade=dist
 
     # original url=https://deb.nodesource.com/gpgkey/nodesource.gpg.key
     - name: Add nodesource signing key
@@ -36,15 +39,6 @@
     - name: Add nodesource apt repository
       apt_repository: >
         repo='deb https://deb.nodesource.com/node_6.x xenial main'
-
-    - name: Add nginx signing key
-      apt_key: >
-        data="{{ lookup('file', 'files/nginx_signing_key.key') }}"
-        id=7BD9BF62
-
-    - name: Add nginx apt repository
-      apt_repository: >
-        repo='deb http://nginx.org/packages/mainline/ubuntu xenial nginx'
 
     - name: Install apt packages
       apt: pkg={{ item }} state=latest
@@ -87,26 +81,23 @@
 
   handlers:
     - name: restart nginx
-      service: name=nginx state=restarted
+      systemd: name=nginx daemon_reload=yes state=restarted
 
 
 - name: Pull and build project code
   hosts: tag_webserver
   connection: ssh
-  sudo: yes
+  become: yes
   roles:
     - role: nodeproject
       repo: https://github.com/PencilCode/pencilcode.git
       dir: pencilcode
+      version: cacticouncil
       tags: pull_pencilcode
     - role: nodeproject
       repo: https://github.com/PencilCode/pencilcode.git
       dir: staging
       tags: pull_staging
-    - role: nodeproject
-      repo: https://github.com/davidbau/pencilcode.git
-      dir: experiment
-      tags: pull_experiment
     - role: nodeproject
       repo: https://github.com/PencilCode/codegym.git
       dir: gym 
@@ -128,13 +119,13 @@
 - name: Link pencilcode service directories
   hosts: tag_webserver
   connection: ssh
-  sudo: yes
+  become: yes
   vars_files:
     - vars/secrets.yml
 
   pre_tasks:
     - file: path=/mnt/datadisk/{{ item }} state=directory mode=755
-      sudo_user: www-data
+      become_user: www-data
       with_items:
         - cache
         - data
@@ -151,11 +142,8 @@
     - role: topdomain
       domain_dir: pencil.cc
       source_dir: staging
-      domain_ssl_key: "{{ pencilcc_ssl_key }}"
-      domain_ssl_file: pencilcc
-    - role: topdomain
-      domain_dir: pencil.codes
-      source_dir: experiment
+      # domain_ssl_key: "{{ pencilcc_ssl_key }}"
+      # domain_ssl_file: "pencilcc"
     - role: topdomain
       domain_dir: pencil.io
       source_dir: pencilcode
@@ -171,7 +159,7 @@
 - name: Setup fishs service
   hosts: tag_webserver
   connection: ssh
-  sudo: yes
+  become: yes
   roles:
     - role: nodeproject
       repo: https://github.com/PencilCode/fish.git
@@ -181,7 +169,6 @@
     - file: path=/srv/fish state=directory mode=755
     - file: state=link dest=/srv/fish/{{ item }} src=/home/source/{{ item }}
       with_items:
-        - experiment
         - staging
         - animate
         - blog
@@ -197,30 +184,28 @@
 
   handlers:
     - name: restart fishs
-      service: name=fishs state=restarted
+      systemd: name=fishs daemon_reload=yes state=restarted
 
 
 - name: Setup main pencilcode repository
   hosts: tag_webserver
   connection: ssh
-  sudo: yes
+  become: yes
   vars_files:
     - vars/secrets.yml
 
   roles:
     - role: nodeproject
-      repo: https://github.com/PencilCode/pencilcode.git
+      repo: "https://github.com/PencilCode/pencilcode.git"
       dir: pencilcode
       tags: pull_pencilcode
-      notify:
-        - restart nginx
-        - restart pencils
-        - restart pencilsock
+      version: cacticouncil
+      notify: ["restart nginx", "restart pencils", "restart pencilsock"]
     - role: topdomain
       domain_dir: pencilcode.net
       source_dir: pencilcode
       domain_ssl_key: "{{ pencilcode_ssl_key }}"
-      domain_ssl_file: pencilcode
+      domain_ssl_file: "pencilcode"
 
   tasks:
     - name: Link /srv/site/root to pencilcode source
@@ -274,21 +259,21 @@
 
   handlers:
     - name: restart nginx
-      service: name=nginx state=restarted
+      systemd: name=nginx daemon_reload=yes state=restarted
 
     - name: restart pencilsock
-      service: name=pencilsock state=restarted
+      systemd: name=pencilsock daemon_reload=yes state=restarted
 
     - name: restart pencils
-      service: name=pencils state=restarted
+      systemd: name=pencils daemon_reload=yes state=restarted
 
     - name: restart uwsgi
-      service: name=uwsgi state=restarted
+      systemd: name=uwsgi daemon_reload=yes state=restarted
 
 - name: Set up logrotate configuration
   hosts: tag_webserver
   connection: ssh
-  sudo: yes
+  become: yes
 
   tasks:
     - copy: src=files/logrotate/{{ item }} dest=/etc/logrotate.d/{{ item }}
@@ -300,16 +285,16 @@
 
   handlers:
     - name: restart logrotate
-      service: name=logrotate state=restarted
+      systemd: name=logrotate daemon_reload=yes state=restarted
 
 - name: Ensure all services are started
   hosts: tag_webserver
   connection: ssh
-  sudo: yes
+  become: yes
 
   tasks:
     - name: start services
-      service: name={{ item }} state=started
+      systemd: name={{ item }} daemon_reload=yes state=started
       with_items:
         - nginx
         - uwsgi

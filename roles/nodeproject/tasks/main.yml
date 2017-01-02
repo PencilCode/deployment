@@ -7,7 +7,7 @@
   git: >
     repo={{ repo }}
     dest=/home/source/{{ dir }}
-  sudo_user: source
+  become_user: source
   register: sync
   when: version is not defined
 - name: sync {{ dir }} to latest code
@@ -15,16 +15,16 @@
     repo={{ repo }}
     dest=/home/source/{{ dir }}
     version={{ version }}
-  sudo_user: source
+  become_user: source
   register: sync
   when: version is defined
 - name: update {{ dir }} to current npm depenencies
   npm: path=/home/source/{{ dir }}
-  sudo_user: source
+  become_user: source
   register: install
 - name: rebuild {{ dir }}
   command: npm run build
-  sudo_user: source
+  become_user: source
   args:
     chdir: /home/source/{{ dir }}
   when: sync|changed or install|changed or force_build

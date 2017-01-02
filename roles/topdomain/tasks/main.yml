@@ -10,13 +10,14 @@
 - file: dest=/srv/{{ domain_dir }}/content state=link
     src=/home/source/{{ source_dir }}/content
 - file: path=/srv/{{ domain_dir }}/key state=directory mode=755
-- copy:
-    content: "{{ domain_ssl_key }}"
-    dest: /srv/{{ domain_dir }}/key/{{ domain_ssl_file }}.key
-    mode: 400
-    owner: www-data
-  when: domain_ssl_key is defined
-- copy: src=files/{{ item }} dest=/srv/{{ domain_dir }}/key/ mode=444
-  with_items: [ '{{ domain_ssl_file }}.crt', 'bundle.crt', 'dh2048.pem' ]
+- block:
+  - copy:
+      content: "{{ domain_ssl_key }}"
+      dest: /srv/{{ domain_dir }}/key/{{ domain_ssl_file }}.key
+      mode: 400
+      owner: www-data
+  - copy: src=files/{{ item }} dest=/srv/{{ domain_dir }}/key/ mode=444
+    with_items: [ 'bundle.crt', 'dh2048.pem' ]
+  - copy: src=files/{{ domain_ssl_file }}.crt
+      dest=/srv/{{ domain_dir }}/key/ mode=444
   when: domain_ssl_file is defined
-
