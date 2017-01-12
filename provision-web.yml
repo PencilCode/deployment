@@ -69,6 +69,14 @@
       shell: ssh-keyscan -H {{ item.public_ip }} >> ~/.ssh/known_hosts
       with_items: "{{ gce.instance_data }}"
 
+    - name: reset known-hosts for ips
+      command: ssh-keygen -R {{ item.private_ip }}
+      with_items: "{{ gce.instance_data }}"
+
+    - name: registering new known-host for ips
+      shell: ssh-keyscan -H {{ item.private_ip }} >> ~/.ssh/known_hosts
+      with_items: "{{ gce.instance_data }}"
+
     - name: reset known-hosts for names
       command: ssh-keygen -R {{ item.name }}
       with_items: "{{ gce.instance_data }}"
