@@ -92,7 +92,7 @@
     - role: nodeproject
       repo: https://github.com/PencilCode/pencilcode.git
       dir: pencilcode
-      version: cacticouncil
+      version: master
       tags: pull_pencilcode
     - role: nodeproject
       repo: https://github.com/PencilCode/pencilcode.git
@@ -199,7 +199,7 @@
       repo: "https://github.com/PencilCode/pencilcode.git"
       dir: pencilcode
       tags: pull_pencilcode
-      version: cacticouncil
+      version: master
       notify: ["restart nginx", "restart pencils", "restart pencilsock"]
     - role: topdomain
       domain_dir: pencilcode.net
