@@ -19,6 +19,7 @@
           service_account_email: "{{ service_account_email }}"
           pem_file: "{{ pem_file }}"
           project_id: "{{ project_id }}"
+          external_ip: none
           tags: nfs
       register: gce
 
