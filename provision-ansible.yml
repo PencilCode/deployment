@@ -4,9 +4,9 @@
   connection: local
 
   vars:
-    machine_name: ansible
+    machine_name: ansible2
     machine_type: f1-micro
-    image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20161221
+    image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170113
     service_account_email: ansible-service@paris-code.iam.gserviceaccount.com
     credentials_file: /etc/ansible/keys/service-key.json
     project_id: paris-code
