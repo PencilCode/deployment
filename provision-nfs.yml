@@ -6,8 +6,8 @@
   vars:
     machine_type: n1-standard-1 # default
     image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20161221
-    service_account_email: 670662678080-v4dlk7smudbfr0rbc2n5mcb2mnsdbqpb@developer.gserviceaccount.com
-    pem_file: /etc/ansible/keys/service-key.pem
+    service_account_email: ansible-service@paris-code.iam.gserviceaccount.com
+    credentials_file: /etc/ansible/keys/service-key.json
     project_id: paris-code
 
   tasks:
@@ -17,7 +17,7 @@
           machine_type: "{{ machine_type }}"
           image: "{{ image }}"
           service_account_email: "{{ service_account_email }}"
-          pem_file: "{{ pem_file }}"
+          credentials_file: "{{ credentials_file }}"
           project_id: "{{ project_id }}"
           external_ip: none
           tags: nfs
@@ -30,7 +30,7 @@
           mode: READ_WRITE
           size_gb: 10
           service_account_email: "{{ service_account_email }}"
-          pem_file: "{{ pem_file }}"
+          credentials_file: "{{ credentials_file }}"
           project_id: "{{ project_id }}"
           zone: "{{ item.zone }}"
       with_items: "{{ gce.instance_data }}"
@@ -43,7 +43,7 @@
           size_gb: 60
           disk_type: pd-ssd
           service_account_email: "{{ service_account_email }}"
-          pem_file: "{{ pem_file }}"
+          credentials_file: "{{ credentials_file }}"
           project_id: "{{ project_id }}"
           zone: "{{ item.zone }}"
       with_items: "{{ gce.instance_data }}"
@@ -55,25 +55,17 @@
           mode: READ_WRITE
           size_gb: 60
           service_account_email: "{{ service_account_email }}"
-          pem_file: "{{ pem_file }}"
+          credentials_file: "{{ credentials_file }}"
           project_id: "{{ project_id }}"
           zone: "{{ item.zone }}"
       with_items: "{{ gce.instance_data }}"
 
     - name: Wait for SSH to come up
-      wait_for: host={{ item.public_ip }} port=22 delay=5 timeout=60
+      wait_for: host={{ item.private_ip }} port=22 delay=5 timeout=60
       with_items: "{{ gce.instance_data }}"
 
     - name: Add host to groupname
-      add_host: hostname={{ item.public_ip }} groupname=launched
-      with_items: "{{ gce.instance_data }}"
-
-    - name: reset known-hosts for ips
-      command: ssh-keygen -R {{ item.public_ip }}
-      with_items: "{{ gce.instance_data }}"
-
-    - name: registering new known-host for ips
-      shell: ssh-keyscan -H {{ item.public_ip }} >> ~/.ssh/known_hosts
+      add_host: hostname={{ item.private_ip }} groupname=launched
       with_items: "{{ gce.instance_data }}"
 
     - name: reset known-hosts for ips
