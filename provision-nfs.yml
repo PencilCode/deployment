@@ -156,8 +156,8 @@
   roles:
     - role: geerlingguy.nfs
       nfs_exports:
-        - /data *(rw,sync)
-        - /backup *(ro,sync)
+        - /data *(rw,sync,no_subtree_check)
+        - /backup *(ro,sync,no_subtree_check)
 
 - name: Set up rsnapshot
   hosts: launched
