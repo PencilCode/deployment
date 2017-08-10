@@ -293,8 +293,16 @@
   become: yes
 
   tasks:
+    - name: enable sysv services
+      service: name={{ item }} enabled=yes
+      with_items:
+        - uwsgi
+        - pencilsock
+        - pencils
+        - fishs
+
     - name: start services
-      systemd: name={{ item }} daemon_reload=yes state=started
+      systemd: name={{ item }} daemon_reload=yes state=started enabled=yes
       with_items:
         - nginx
         - uwsgi
