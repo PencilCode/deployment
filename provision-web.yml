@@ -19,7 +19,7 @@
           service_account_email: "{{ service_account_email }}"
           credentials_file: "{{ credentials_file }}"
           project_id: "{{ project_id }}"
-          tags: webserver
+          tags: webserver,http-server,https-server
       register: gce
 
     - name: Create log disks
