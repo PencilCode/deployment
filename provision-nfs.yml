@@ -39,7 +39,7 @@
           name: "{{ item.name }}-data"
           instance_name: "{{ item.name }}"
           mode: READ_WRITE
-          size_gb: 60
+          size_gb: 100
           disk_type: pd-ssd
           service_account_email: "{{ service_account_email }}"
           credentials_file: "{{ credentials_file }}"
@@ -52,7 +52,7 @@
           name: "{{ item.name }}-backup"
           instance_name: "{{ item.name }}"
           mode: READ_WRITE
-          size_gb: 60
+          size_gb: 200
           service_account_email: "{{ service_account_email }}"
           credentials_file: "{{ credentials_file }}"
           project_id: "{{ project_id }}"
@@ -92,19 +92,19 @@
       filesystem: >
         fstype=ext4
         dev=/dev/disk/by-id/google-{{ ansible_hostname }}-log
-        opts="-E lazy_itable_init=0,lazy_journal_init=0"
+        opts="-E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for data disks
       filesystem: >
         fstype=ext4
         dev=/dev/disk/by-id/google-{{ ansible_hostname }}-data
-        opts="-E lazy_itable_init=0,lazy_journal_init=0"
+        opts="-b size=512 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for backup disks
       filesystem: >
         fstype=ext4
         dev=/dev/disk/by-id/google-{{ ansible_hostname }}-backup
-        opts="-E lazy_itable_init=0,lazy_journal_init=0"
+        opts="-b size=512 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Mount log disks
       mount: >

@@ -6,6 +6,7 @@
   vars:
     machine_type: n1-standard-1 # default
     image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330
+    next_image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20190722a
     service_account_email: ansible-service@paris-code.iam.gserviceaccount.com
     credentials_file: /etc/ansible/keys/service-key.json
     project_id: paris-code
@@ -94,7 +95,7 @@
       filesystem: >
         fstype=ext4
         dev=/dev/disk/by-id/google-{{ ansible_hostname }}-log-1
-        opts="-E lazy_itable_init=0,lazy_journal_init=0"
+        opts="-E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Mount log disks
       mount: >
