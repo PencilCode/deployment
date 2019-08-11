@@ -159,6 +159,16 @@
         - /data *(rw,sync,no_subtree_check)
         - /backup *(ro,sync,no_subtree_check)
 
+- name: Disable mlocate
+  hosts: launched
+  connection: ssh
+  gather_facts: no
+  become: yes
+
+  tasks:
+    - name: Change permission of cron.daily mlocate to disable execution.
+      file: /etc/cron.daily/mlocate mode=a-x
+
 - name: Set up rsnapshot
   hosts: launched
   connection: ssh
