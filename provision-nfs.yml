@@ -6,9 +6,9 @@
   vars:
     machine_type: n1-standard-1 # default
     image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330
-    service_account_email: ansible-service@paris-code.iam.gserviceaccount.com
+    service_account_email: ansible-service@pencil-code-test.iam.gserviceaccount.com
     credentials_file: /etc/ansible/keys/service-key.json
-    project_id: paris-code
+    project_id: pencil-code-test
 
   tasks:
     - name: Launch instances
@@ -165,9 +165,9 @@
   gather_facts: no
   become: yes
 
-  tasks:
-    - name: Change permission of cron.daily mlocate to disable execution.
-      file: /etc/cron.daily/mlocate mode=a-x
+  # tasks:
+  #   - name: Change permission of cron.daily mlocate to disable execution.
+  #     file: /etc/cron.daily/mlocate mode=a-x
 
 - name: Set up rsnapshot
   hosts: launched

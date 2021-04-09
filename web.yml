@@ -90,28 +90,28 @@
   become: yes
   roles:
     - role: nodeproject
-      repo: https://github.com/PencilCode/pencilcode.git
+      repo: https://github.com/cacticouncil/pencilcode.git
       dir: pencilcode
       version: master
       tags: pull_pencilcode
     - role: nodeproject
-      repo: https://github.com/PencilCode/pencilcode.git
+      repo: https://github.com/cacticouncil/pencilcode.git
       dir: staging
       tags: pull_staging
     - role: nodeproject
-      repo: https://github.com/PencilCode/codegym.git
+      repo: https://github.com/cacticouncil/codegym.git
       dir: gym 
       tags: pull_gym
     - role: nodeproject
-      repo: https://github.com/PencilCode/blog.git
+      repo: https://github.com/cacticouncil/blog.git
       dir: blog
       tags: pull_blog
     - role: nodeproject
-      repo: https://github.com/PencilCode/reference.git
+      repo: https://github.com/cacticouncil/reference.git
       dir: ref
       tags: pull_ref
     - role: nodeproject
-      repo: https://github.com/PencilCode/animate.git
+      repo: https://github.com/cacticouncil/animate.git
       dir: animate
       tags: pull_animate
 
@@ -162,7 +162,7 @@
   become: yes
   roles:
     - role: nodeproject
-      repo: https://github.com/PencilCode/fish.git
+      repo: https://github.com/cacticouncil/fish.git
       dir: fish
       tags: pull_fish
   tasks:
@@ -196,7 +196,7 @@
 
   roles:
     - role: nodeproject
-      repo: "https://github.com/PencilCode/pencilcode.git"
+      repo: "https://github.com/cacticouncil/pencilcode.git"
       dir: pencilcode
       tags: pull_pencilcode
       version: master

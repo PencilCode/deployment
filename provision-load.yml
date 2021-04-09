@@ -6,9 +6,9 @@
   vars:
     machine_type: n1-standard-1 # default
     image: backports-debian-7-wheezy
-    service_account_email: 670662678080-v4dlk7smudbfr0rbc2n5mcb2mnsdbqpb@developer.gserviceaccount.com
-    pem_file: /etc/ansible/keys/service-key.pem
-    project_id: paris-code
+    service_account_email: 1085318237489-compute@developer.gserviceaccount.com
+    pem_file: /etc/ansible/keys/service-key-default.json
+    project_id: pencil-code-test
 
   tasks:
     - name: Launch instances
