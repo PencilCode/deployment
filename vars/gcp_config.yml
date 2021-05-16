@@ -1,0 +1,24 @@
+---
+# Project Information
+# -------------------
+gcp_project: pencil-code-test
+gcp_cred_kind: serviceaccount
+gcp_cred_file: /etc/ansible/keys/service-key.json
+gcp_region: "us-central1"
+gcp_zone: "us-central1-a"
+
+# Instance Information - Bootstrap VM
+gcp_bootstrap_machine_name: ansible-bootstrap
+gcp_bootstrap_machine_type: f1-micro
+gcp_bootstrap_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330'
+
+# User / Permissions Information
+# ------------------------------
+# gcp_admin_user:	google username of the administrator who will connect to the bootstrap instance.
+# gcp_service_user:	service account username for this project (key for user should be in "~/.ssh/gcp_service_user" file)
+# gcp_scopes:		permissions for this instance
+gcp_admin_user: someadminusername
+gcp_service_user: ansible-service
+gcp_scopes:
+ - https://www.googleapis.com/auth/cloud-platform
+   https://www.googleapis.com/auth/compute
