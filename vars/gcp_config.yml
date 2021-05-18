@@ -1,16 +1,18 @@
 ---
 # Project Information
 # -------------------
-gcp_project: pencil-code-test
+gcp_project: pencil-io
 gcp_cred_kind: serviceaccount
 gcp_cred_file: /etc/ansible/keys/service-key.json
 gcp_region: "us-central1"
 gcp_zone: "us-central1-a"
 
 # Instance Information - Bootstrap VM
+gcp_bootstrap_address: ansible-bootstrap-address
+gcp_bootstrap_disk: ansible-bootstrap-disk
+gcp_bootstrap_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330'
 gcp_bootstrap_machine_name: ansible-bootstrap
 gcp_bootstrap_machine_type: f1-micro
-gcp_bootstrap_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330'
 
 # User / Permissions Information
 # ------------------------------

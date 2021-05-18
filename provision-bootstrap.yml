@@ -7,7 +7,7 @@
   tasks:
     - name: Create disk
       gcp_compute_disk:
-        name: 'pc-ansible-disk'
+        name: "{{ gcp_bootstrap_disk }}"
         source_image: "{{ gcp_bootstrap_image }}"
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
@@ -18,7 +18,7 @@
 
     - name: Create address
       gcp_compute_address:
-        name: 'pc-ansible-address'
+        name: "{{ gcp_bootstrap_address }}"
         region: "{{ gcp_region }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
@@ -37,7 +37,6 @@
         metadata:
           enable-oslogin: True
         network_interfaces:
-#          - network: null # use default
            - access_configs:
               - name: 'External NAT'
                 nat_ip: "{{ address }}"
@@ -74,34 +73,23 @@
     - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
 
   tasks:
-    # Set up the user and copy over keys, host information, etc.
-    - name: Create admin user account (if it doesn't exist yet)
-      user:
-        name: "{{ gcp_admin_user }}"
-        groups: sudo
-        append: yes
-        state: present
-      register: admin_user
 
     - name: Create SSH key directory (if it doesn't exist yet)
       file:
-        path: "{{ admin_user.home }}/.ssh"
+        path: "/home/{{ gcp_service_user }}/.ssh"
         state: directory
-      become_user: "{{ admin_user.name }}"
 
     - name: Copy service account private SSH key
-      become_user: "{{ admin_user.name }}"
       copy: src={{ ansible_ssh_private_key_file }} mode=400
-            dest="{{ admin_user.home }}/.ssh/{{ gcp_service_user }}"
+            dest="/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
 
     - name: Add github.com as known host
       lineinfile:
-        dest: "{{ admin_user.home }}/.ssh/known_hosts"
+        dest: "/home/{{ gcp_service_user }}/.ssh/known_hosts"
         create: yes
         state: present
         line: "{{ lookup('pipe', 'ssh-keyscan -t rsa github.com') }}"
         regexp: "^github\\.com"
-      become_user: "{{ admin_user.name }}"
 
     - name: Make ansible service account credential directory
       file:
@@ -113,6 +101,12 @@
         content: "{{ gcp_cred_file }}"
         dest: "{{ gcp_cred_file }}"
 
+    - name: Copy over miscellaneous helpful files
+      copy: src=~/{{ item }}
+            dest=/home/{{ gcp_service_user }}/{{ item }}
+      with_items:
+       - .gitconfig
+
     - name: Install https support for apt
       apt: name=apt-transport-https update_cache=yes
 
@@ -120,20 +114,20 @@
       apt: upgrade=dist
 
     - name: Add nodesource signing key
-      apt_key: >
-        url=https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
-        id=68576280
+      apt_key:
+        url: https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
+        id: 68576280
 
     - name: Add nodesource apt repository
-      apt_repository: >
-        repo='deb https://deb.nodesource.com/node_0.12 wheezy main'
+      apt_repository:
+        repo: deb https://deb.nodesource.com/node_0.12 wheezy main
 
     - name: Upgrade apt packages to the latest version
       apt: upgrade=dist
 
     - name: Install apt packages
-      apt: pkg={{ item }} state=latest
-      with_items:
+      apt:
+        name:
         - build-essential
         - python-setuptools
         - python-dev
@@ -145,6 +139,7 @@
         - git
         - vim
         - bash-completion
+        state: latest
 
     - name: Install ansible
       pip:
@@ -153,16 +148,8 @@
           - ansible
           - apache-libcloud
 
-    - name: Sync {{ dir }} to latest deployment scripts
-      git: >
-        repo=git@github.com:PencilCode/deployment.git
-        dest={{ admin_user.home }}/deployment
-      become_user: "{{ admin_user.name }}"
-
-#    - name: Copy over miscellaneous helpful files
-      become: no
-      copy: src={{ admin_user.home }}/{{ item }}
-            dest={{ admin_user.home }}/{{ item }}
-      with_items:
-#       - .ansible_vault_password
-       - .gitconfig
+    - name: Sync latest deployment scripts
+      git:
+        repo: https://github.com/PencilCode/deployment
+        dest: "/home/{{ gcp_service_user }}/deployment"
+        version: pencil.io
