@@ -1,19 +1,25 @@
 Pencil Code Deployment Scripts
 ------------------------------
 
-A set of ansible playbooks for deploying the pencilcode
-service on a GCE cluster.
+A set of ansible playbooks for deploying the pencilcode service on a GCE cluster.
 
-Install ansible, then this creates a GCE instance that will
-be used as the ansible master:
+To prepare a project to deploy a cluster, install ansible locally and follow these steps (tailored for Unix-style systems).
 
+1. Create the Google Cloud project and enable Compute Engine it. (The default project is "pencil-io".)
+2. Add service account ```ansible-service```. Download its service key JSON; store it as ```/etc/ansible/keys/service-key.json```.
+3. Grant ```ansible-service``` the IAM roles "Compute Admin", "Compute OS Admin Login", and "Service Account User" for the project.
+4. Locally, create ```ansible-service``` SSH keys using this command: ```ssh-keygen -C "ansible-service" -f ~/.ssh/ansible-service```
+5. Add the public key (```~/.ssh/ansible-service.pub```) to the project under the Compute Engine -> Metadata -> SSH Keys tab.
+
+To deploy the ansible bootstrap VM instance execute this locally:
 ```
 ansible-playbook provision-ansible.yml
 ```
 
-From that master, the following sets up the whole cluster:
+From that bootstrap instance, the following sets up the whole cluster:
 
 ```
+sudo -u ansible-service /bin/bash
 ansible-playbook provision-nfs.yml
 ansible-playbook provision-web.yml
 ansible-playbook web.yml
