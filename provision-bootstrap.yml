@@ -152,7 +152,8 @@
 
     - name: Install python3.8 apt packages (Xenial)
       apt:
-        update_cache: yes autoremove: yes
+        update_cache: yes
+        autoremove: yes
         name:
         - python3.8-dev
         - python3.8-distutils
