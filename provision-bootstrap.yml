@@ -125,14 +125,12 @@
     - name: Upgrade apt packages to the latest version
       apt: upgrade=dist
 
-    - name: Install apt packages
+    - name: Install base apt packages
       apt:
+        update_cache: yes
         name:
         - build-essential
-        - python-setuptools
-        - python-dev
-        - python-openssl
-        - python-pip
+        - software-properties-common
         - libssl-dev
         - libffi-dev
         - nodejs
@@ -141,15 +139,42 @@
         - bash-completion
         state: latest
 
-    - name: Install ansible
+#    - name: Upgrade pip
+#      pip:
+#        extra_args: --no-cache-dir
+#        name: pip
+#        executable: pip3
+#        state: latest
+
+    - name: Add deadsnakes apt repository (for old Xenial python3.8)
+      apt_repository:
+        repo: 'ppa:deadsnakes/ppa'
+
+    - name: Install python3.8 apt packages (Xenial)
+      apt:
+        update_cache: yes autoremove: yes
+        name:
+        - python3.8-dev
+        - python3.8-distutils
+        state: latest
+
+    - name: Set default python3 to python3.8 (Xenial)
+      shell: "/usr/sbin/update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1"
+
+    - name: Install pip for python3.8 (Xenial)
+      shell: "/usr/bin/wget -qO- https://bootstrap.pypa.io/get-pip.py | python3.8"
+
+    - name: Install ansible and other critical packages
       pip:
         extra_args: --no-cache-dir
+        executable: pip3
         name:
           - ansible
           - apache-libcloud
+          - pyopenssl
 
-    - name: Sync latest deployment scripts
-      git:
-        repo: https://github.com/PencilCode/deployment
-        dest: "/home/{{ gcp_service_user }}/deployment"
-        version: pencil.io
+#    - name: Sync latest deployment scripts
+#      git:
+#        repo: https://github.com/PencilCode/deployment
+#        dest: "/home/{{ gcp_service_user }}/deployment"
+#        version: pencil.io
