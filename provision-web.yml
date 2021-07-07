@@ -1,7 +1,8 @@
-- name: Create instance(s)
+- name: Create Web VM
   hosts: localhost
   gather_facts: no
   connection: local
+  vars_file: vars/gcp_config.yml
 
   vars:
     machine_type: n1-standard-1 # default

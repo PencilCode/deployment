@@ -1,87 +1,100 @@
-- name: Create instance(s)
+- name: Create NFS instance
   hosts: localhost
   gather_facts: no
   connection: local
-
-  vars:
-    machine_type: n1-standard-1 # default
-    image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330
-    service_account_email: ansible-service@pencil-code-test.iam.gserviceaccount.com
-    credentials_file: /etc/ansible/keys/service-key.json
-    project_id: pencil-code-test
+  vars_files: vars/gcp_config.yml
 
   tasks:
-    - name: Launch instances
-      gce:
-          instance_names: nfs
-          machine_type: "{{ machine_type }}"
-          image: "{{ image }}"
-          service_account_email: "{{ service_account_email }}"
-          credentials_file: "{{ credentials_file }}"
-          project_id: "{{ project_id }}"
-          tags: nfs
-      register: gce
+    - name: Create base disk
+      gcp_compute_disk:
+        name: "{{ gcp_nfs_disk }}"
+        source_image: "{{ gcp_nfs_image }}"
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: disk
 
-    - name: Create log disks
-      gce_pd:
-          name: "{{ item.name }}-log"
-          instance_name: "{{ item.name }}"
-          mode: READ_WRITE
-          size_gb: 10
-          service_account_email: "{{ service_account_email }}"
-          credentials_file: "{{ credentials_file }}"
-          project_id: "{{ project_id }}"
-          zone: "{{ item.zone }}"
-      with_items: "{{ gce.instance_data }}"
+    - name: Create log disk
+      gcp_compute_disk:
+        name: "{{ gcp_nfs_disk }}-log"
+        size_gb: 10
+        source_image: "{{ gcp_nfs_image }}"
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: disk
 
-    - name: Create data disks
-      gce_pd:
-          name: "{{ item.name }}-data"
-          instance_name: "{{ item.name }}"
-          mode: READ_WRITE
-          size_gb: 100
-          disk_type: pd-ssd
-          service_account_email: "{{ service_account_email }}"
-          credentials_file: "{{ credentials_file }}"
-          project_id: "{{ project_id }}"
-          zone: "{{ item.zone }}"
-      with_items: "{{ gce.instance_data }}"
+    - name: Create data disk
+      gcp_compute_disk:
+        name: "{{ gcp_nfs_disk }}-data"
+        size_gb: 100
+        source_image: "{{ gcp_nfs_image }}"
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: disk
 
     - name: Create backup disk
-      gce_pd:
-          name: "{{ item.name }}-backup"
-          instance_name: "{{ item.name }}"
-          mode: READ_WRITE
-          size_gb: 200
-          service_account_email: "{{ service_account_email }}"
-          credentials_file: "{{ credentials_file }}"
-          project_id: "{{ project_id }}"
-          zone: "{{ item.zone }}"
-      with_items: "{{ gce.instance_data }}"
+      gcp_compute_disk:
+        name: "{{ gcp_nfs_disk }}-backup"
+        size_gb: 200
+        source_image: "{{ gcp_nfs_image }}"
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: disk
+
+    - name: Create address
+      gcp_compute_address:
+        name: "{{ gcp_nfs_address }}"
+        region: "{{ gcp_region }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: address
+
+    - name: Create instance
+      gcp_compute_instance:
+        name: "{{ gcp_nfs_machine_name }}"
+        machine_type: "{{ gcp_nfs_machine_type }}"
+        disks:
+          - auto_delete: true
+            boot: true
+            source: "{{ disk }}"
+        metadata:
+          enable-oslogin: True
+        network_interfaces:
+           - access_configs:
+              - name: 'External NAT'
+                nat_ip: "{{ address }}"
+                type: 'ONE_TO_ONE_NAT'
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: instance
 
     - name: Wait for SSH to come up
-      wait_for: host={{ item.private_ip }} port=22 delay=5 timeout=60
-      with_items: "{{ gce.instance_data }}"
+      wait_for: host={{ address.address }} port=22 delay=5 timeout=120
 
     - name: Add host to groupname
-      add_host: hostname={{ item.private_ip }} groupname=launched
-      with_items: "{{ gce.instance_data }}"
+      add_host: hostname={{ address.address }} groupname=launched
 
-    - name: reset known-hosts for ips
-      command: ssh-keygen -R {{ item.private_ip }}
-      with_items: "{{ gce.instance_data }}"
+    - name: Reset known-hosts for IPs
+      command: ssh-keygen -R {{ address.address }}
 
-    - name: registering new known-host for ips
-      shell: ssh-keyscan -H {{ item.private_ip }} >> ~/.ssh/known_hosts
-      with_items: "{{ gce.instance_data }}"
-
-    - name: reset known-hosts for names
-      command: ssh-keygen -R {{ item.name }}
-      with_items: "{{ gce.instance_data }}"
-
-    - name: registering new known-host for names
-      shell: ssh-keyscan -H {{ item.name }} >> ~/.ssh/known_hosts
-      with_items: "{{ gce.instance_data }}"
+    - name: Add the new instance as a known host
+      shell: ssh-keyscan {{ address.address }} >> ~/.ssh/known_hosts
 
 - name: Set up disks
   hosts: launched
