@@ -19,7 +19,7 @@ ansible-playbook provision-ansible.yml
 From that bootstrap instance, the following sets up the whole cluster:
 
 ```
-sudo -u ansible-service /bin/bash
+sudo su ansible-service
 ansible-playbook provision-nfs.yml
 ansible-playbook provision-web.yml
 ansible-playbook web.yml
