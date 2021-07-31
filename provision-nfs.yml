@@ -14,7 +14,7 @@
         auth_kind: "{{ gcp_cred_kind }}"
         service_account_file: "{{ gcp_cred_file }}"
         scopes: "{{ gcp_scopes }}"
-      register: disk
+      register: disk1
 
     - name: Create log disk
       gcp_compute_disk:
@@ -26,7 +26,7 @@
         auth_kind: "{{ gcp_cred_kind }}"
         service_account_file: "{{ gcp_cred_file }}"
         scopes: "{{ gcp_scopes }}"
-      register: disk
+      register: disk2
 
     - name: Create data disk
       gcp_compute_disk:
@@ -36,9 +36,10 @@
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
+        type: pd-ssd
         service_account_file: "{{ gcp_cred_file }}"
         scopes: "{{ gcp_scopes }}"
-      register: disk
+      register: disk3
 
     - name: Create backup disk
       gcp_compute_disk:
@@ -50,7 +51,7 @@
         auth_kind: "{{ gcp_cred_kind }}"
         service_account_file: "{{ gcp_cred_file }}"
         scopes: "{{ gcp_scopes }}"
-      register: disk
+      register: disk4
 
     - name: Create address
       gcp_compute_address:
@@ -69,7 +70,16 @@
         disks:
           - auto_delete: true
             boot: true
-            source: "{{ disk }}"
+            source: "{{ disk1 }}"
+          - auto_delete: true
+            boot: false
+            source: "{{ disk2 }}"
+          - auto_delete: true
+            boot: false
+            source: "{{ disk3 }}"
+          - auto_delete: true
+            boot: false
+            source: "{{ disk4 }}"
         metadata:
           enable-oslogin: True
         network_interfaces:
@@ -104,26 +114,26 @@
     - name: Set up filesystem for log disks
       filesystem: >
         fstype=ext4
-        dev=/dev/disk/by-id/google-{{ ansible_hostname }}-log
+        dev=/dev/disk/by-id/google-persistent-disk-1
         opts="-E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for data disks
       filesystem: >
         fstype=ext4
-        dev=/dev/disk/by-id/google-{{ ansible_hostname }}-data
+        dev=/dev/disk/by-id/google-persistent-disk-2
         opts="-b size=512 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for backup disks
       filesystem: >
         fstype=ext4
-        dev=/dev/disk/by-id/google-{{ ansible_hostname }}-backup
+        dev=/dev/disk/by-id/google-persistent-disk-3
         opts="-b size=512 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Mount log disks
       mount: >
         name=/var/log
         fstype=ext4
-        src=/dev/disk/by-id/google-{{ ansible_hostname }}-log
+        src=/dev/disk/by-id/google-persistent-disk-1
         state=mounted
       notify: restart rsyslog
 
@@ -131,7 +141,7 @@
       mount: >
         name=/data
         fstype=ext4
-        src=/dev/disk/by-id/google-{{ ansible_hostname }}-data
+        src=/dev/disk/by-id/google-persistent-disk-2
         state=mounted
 
     - name: Set up file permissions
@@ -150,7 +160,7 @@
       mount: >
         name=/backup
         fstype=ext4
-        src=/dev/disk/by-id/google-{{ ansible_hostname }}-backup
+        src=/dev/disk/by-id/google-persistent-disk-3
         state=mounted
 
     - name: Set up file permissions
@@ -182,19 +192,19 @@
   #   - name: Change permission of cron.daily mlocate to disable execution.
   #     file: /etc/cron.daily/mlocate mode=a-x
 
-- name: Set up rsnapshot
-  hosts: launched
-  connection: ssh
-  gather_facts: no
-  become: yes
+# - name: Set up rsnapshot
+#   hosts: launched
+#   connection: ssh
+#   gather_facts: no
+#   become: yes
   
-  tasks:
-    - name: Install rsnapshot
-      apt: name=rsnapshot state=latest
+#   tasks:
+#     - name: Install rsnapshot
+#       apt: name=rsnapshot state=latest
 
-    - name: Configure rsnapshot
-      copy: src=files/rsnapshot.conf dest=/etc/rsnapshot.conf
+#     - name: Configure rsnapshot
+#       copy: src=files/rsnapshot.conf dest=/etc/rsnapshot.conf
 
-    - name: Configure rsnapshot cron
-      copy: src=files/rsnapshot.cron dest=/etc/cron.d/rsnapshot
+#     - name: Configure rsnapshot cron
+#       copy: src=files/rsnapshot.cron dest=/etc/cron.d/rsnapshot
 
