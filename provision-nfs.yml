@@ -109,62 +109,72 @@
 - name: Set up disks
   hosts: launched
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
+  vars_files: vars/gcp_config.yml
   tasks:
     - name: Set up filesystem for log disks
-      filesystem: >
-        fstype=ext4
-        dev=/dev/disk/by-id/google-persistent-disk-1
-        opts="-E lazy_itable_init=0,lazy_journal_init=0,discard"
+      filesystem:
+        fstype: ext4
+        dev: /dev/disk/by-id/google-persistent-disk-1
+        opts: "-E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for data disks
-      filesystem: >
-        fstype=ext4
-        dev=/dev/disk/by-id/google-persistent-disk-2
-        opts="-b size=512 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
+      filesystem:
+        fstype: ext4
+        dev: /dev/disk/by-id/google-persistent-disk-2
+        opts: "-b size=512 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for backup disks
-      filesystem: >
-        fstype=ext4
-        dev=/dev/disk/by-id/google-persistent-disk-3
-        opts="-b size=512 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
+      filesystem:
+        fstype: ext4
+        dev: /dev/disk/by-id/google-persistent-disk-3
+        opts: "-b size=512 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Mount log disks
-      mount: >
-        name=/var/log
-        fstype=ext4
-        src=/dev/disk/by-id/google-persistent-disk-1
-        state=mounted
+      mount:
+        path: /var/log
+        fstype: ext4
+        src: /dev/disk/by-id/google-persistent-disk-1
+        state: mounted
       notify: restart rsyslog
 
     - name: Mount data disks
-      mount: >
-        name=/data
-        fstype=ext4
-        src=/dev/disk/by-id/google-persistent-disk-2
-        state=mounted
+      mount:
+        path: /data
+        fstype: ext4
+        src: /dev/disk/by-id/google-persistent-disk-2
+        state: mounted
 
     - name: Set up file permissions
-      file: path=/data owner=www-data group=www-data state=directory
+      ansible.builtin.file: 
+        path: /data 
+        owner: www-data
+        group: www-data
+        state: directory
 
     - name: Set up subdirectories
-      file: >
-        path=/mnt/datadisk/{{ item }}
-        state=directory mode=755 owner=www-data group=www-data
+      ansible.builtin.file:
+        path: /mnt/datadisk/{{ item }}
+        state: directory mode:755 owner:www-data group:www-data
       with_items:
         - cache
         - data
         - proxycache
 
     - name: Mount backup disks
-      mount: >
-        name=/backup
-        fstype=ext4
-        src=/dev/disk/by-id/google-persistent-disk-3
-        state=mounted
+      mount:
+        path: /backup
+        fstype: ext4
+        src: /dev/disk/by-id/google-persistent-disk-3
+        state: mounted
 
     - name: Set up file permissions
-      file: path=/backup owner=www-data group=www-data state=directory
+      ansible.builtin.file: 
+        path: /backup
+        owner: www-data
+        group: www-data
+        state: directory
 
   handlers:
     - name: restart rsyslog
@@ -173,8 +183,10 @@
 - name: Set up nfs
   hosts: launched
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   gather_facts: no
   become: yes
+  vars_files: vars/gcp_config.yml
 
   roles:
     - role: geerlingguy.nfs
@@ -185,9 +197,10 @@
 - name: Disable mlocate
   hosts: launched
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   gather_facts: no
   become: yes
-
+  vars_files: vars/gcp_config.yml
   # tasks:
   #   - name: Change permission of cron.daily mlocate to disable execution.
   #     file: /etc/cron.daily/mlocate mode=a-x
