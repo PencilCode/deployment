@@ -122,18 +122,21 @@
 
     - name: Copy over ansible service account credential file
       copy:
-        content: "{{ gcp_cred_file }}"
-        dest: "{{ gcp_cred_file }}"
+        content: {{ gcp_cred_file }}
+        dest: {{ gcp_cred_file }}
 
     - name: Create SSH key directory (if it doesn't exist yet)
       file:
         path: "/home/{{ gcp_service_user }}/.ssh"
-        owner: "{{ gcp_service_user }}"
+        owner: {{ gcp_service_user }}
         state: directory
 
     - name: Copy service account private SSH key
-      copy: src={{ ansible_ssh_private_key_file }} mode=400 owner="{{ gcp_service_user }}"
-            dest="/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
+      copy:
+        src: {{ ansible_ssh_private_key_file }}
+        mode: 400
+        owner: {{ gcp_service_user }}
+        dest: "/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
 
     - name: Set up filesystem for log disks
       filesystem:
@@ -178,7 +181,10 @@
     - name: Set up subdirectories
       ansible.builtin.file:
         path: /mnt/datadisk/{{ item }}
-        state: directory mode:755 owner:www-data group:www-data
+        state: directory
+        mode: 755
+        owner: www-data
+        group: www-data
       with_items:
         - cache
         - data
