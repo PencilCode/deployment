@@ -20,7 +20,6 @@
       gcp_compute_disk:
         name: "{{ gcp_nfs_disk }}-log"
         size_gb: 10
-        source_image: "{{ gcp_nfs_image }}"
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
@@ -32,7 +31,6 @@
       gcp_compute_disk:
         name: "{{ gcp_nfs_disk }}-data"
         size_gb: 100
-        source_image: "{{ gcp_nfs_image }}"
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
@@ -45,7 +43,6 @@
       gcp_compute_disk:
         name: "{{ gcp_nfs_disk }}-backup"
         size_gb: 200
-        source_image: "{{ gcp_nfs_image }}"
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
@@ -126,13 +123,13 @@
       filesystem:
         fstype: ext4
         dev: /dev/disk/by-id/google-persistent-disk-2
-        opts: "-b size=1024 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
+        opts: "-b 1024 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for backup disks
       filesystem:
         fstype: ext4
         dev: /dev/disk/by-id/google-persistent-disk-3
-        opts: "-b size=1024 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
+        opts: "-b 1024 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Mount log disks
       mount:
