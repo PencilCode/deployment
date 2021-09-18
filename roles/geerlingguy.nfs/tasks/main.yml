@@ -3,12 +3,24 @@
 - name: Include OS-specific variables.
   include_vars: "{{ ansible_os_family }}.yml"
 
+- name: Include overrides specific to Fedora.
+  include_vars: Fedora.yml
+  when:
+    - ansible_os_family == 'RedHat'
+    - ansible_distribution == "Fedora"
+
 # Setup/install tasks.
-- include: setup-RedHat.yml
+- include_tasks: setup-RedHat.yml
   when: ansible_os_family == 'RedHat'
 
-- include: setup-Debian.yml
+- include_tasks: setup-Debian.yml
   when: ansible_os_family == 'Debian'
+
+- name: Ensure directories to export exist
+  file:  # noqa 208
+    path: "{{ item.strip().split()[0] }}"
+    state: directory
+  with_items: "{{ nfs_exports }}"
 
 - name: Copy exports file.
   template:
@@ -17,7 +29,7 @@
     owner: root
     group: root
     mode: 0644
-  notify: restart nfs
+  notify: reload nfs
 
 - name: Ensure nfs is running.
   service: "name={{ nfs_server_daemon }} state=started enabled=yes"
