@@ -74,24 +74,6 @@
 
   tasks:
 
-    - name: Create SSH key directory (if it doesn't exist yet)
-      file:
-        path: "/home/{{ gcp_service_user }}/.ssh"
-        state: directory
-
-	# TODO: change the user and known hosts to be owned by gcp_service_user
-    - name: Copy service account private SSH key
-      copy: src={{ ansible_ssh_private_key_file }} mode=400
-            dest="/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
-
-    - name: Add github.com as known host
-      lineinfile:
-        dest: "/home/{{ gcp_service_user }}/.ssh/known_hosts"
-        create: yes
-        state: present
-        line: "{{ lookup('pipe', 'ssh-keyscan -t rsa github.com') }}"
-        regexp: "^github\\.com"
-
     - name: Make ansible service account credential directory
       file:
         path: "{{ gcp_cred_file | dirname }}"
@@ -101,6 +83,24 @@
       copy:
         content: "{{ gcp_cred_file }}"
         dest: "{{ gcp_cred_file }}"
+
+    - name: Create SSH key directory (if it doesn't exist yet)
+      file:
+        path: "/home/{{ gcp_service_user }}/.ssh"
+        owner: "{{ gcp_service_user }}"
+        state: directory
+
+    - name: Copy service account private SSH key
+      copy: src={{ ansible_ssh_private_key_file }} mode=400 owner="{{ gcp_service_user }}"
+            dest="/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
+
+    - name: Add github.com as known host
+      lineinfile:
+        dest: "/home/{{ gcp_service_user }}/.ssh/known_hosts"
+        create: yes
+        state: present
+        line: "{{ lookup('pipe', 'ssh-keyscan -t rsa github.com') }}"
+        regexp: "^github\\.com"
 
     - name: Copy over miscellaneous helpful files
       copy: src=~/{{ item }}

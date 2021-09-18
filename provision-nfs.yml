@@ -106,13 +106,35 @@
 - name: Set up disks
   hosts: launched
   connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
-
+  remote_user: "{{ gcp_service_user }}"
   vars_files: vars/gcp_config.yml
+
   vars:
     - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+
   tasks:
+
+    - name: Make ansible service account credential directory
+      file:
+        path: "{{ gcp_cred_file | dirname }}"
+        state: directory
+
+    - name: Copy over ansible service account credential file
+      copy:
+        content: "{{ gcp_cred_file }}"
+        dest: "{{ gcp_cred_file }}"
+
+    - name: Create SSH key directory (if it doesn't exist yet)
+      file:
+        path: "/home/{{ gcp_service_user }}/.ssh"
+        owner: "{{ gcp_service_user }}"
+        state: directory
+
+    - name: Copy service account private SSH key
+      copy: src={{ ansible_ssh_private_key_file }} mode=400 owner="{{ gcp_service_user }}"
+            dest="/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
+
     - name: Set up filesystem for log disks
       filesystem:
         fstype: ext4
