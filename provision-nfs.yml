@@ -126,13 +126,13 @@
       filesystem:
         fstype: ext4
         dev: /dev/disk/by-id/google-persistent-disk-2
-        opts: "-b size=512 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
+        opts: "-b size=1024 -N 10000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Set up filesystem for backup disks
       filesystem:
         fstype: ext4
         dev: /dev/disk/by-id/google-persistent-disk-3
-        opts: "-b size=512 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
+        opts: "-b size=1024 -N 20000000 -E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Mount log disks
       mount:
