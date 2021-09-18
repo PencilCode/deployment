@@ -211,9 +211,9 @@
 - name: Set up nfs
   hosts: launched
   connection: ssh
-  remote_user: "{{ gcp_service_user }}"
-  gather_facts: no
+  gather_facts: no 
   become: yes
+  remote_user: "{{ gcp_service_user }}"
   vars_files: vars/gcp_config.yml
 
   roles:
@@ -225,9 +225,9 @@
 - name: Disable mlocate
   hosts: launched
   connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   gather_facts: no
   become: yes
+  remote_user: "{{ gcp_service_user }}"
   vars_files: vars/gcp_config.yml
   # tasks:
   #   - name: Change permission of cron.daily mlocate to disable execution.
