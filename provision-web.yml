@@ -1,43 +1,11 @@
-- name: Create Web VM
+- name: Create web instances
   hosts: localhost
   gather_facts: no
   connection: local
-  vars_file: vars/gcp_config.yml
+  vars_files: vars/gcp_config.yml
 
   tasks:
-    # - name: Launch instances
-    #   gce:
-    #       instance_names: web1,web2
-    #       machine_type: "{{ machine_type }}"
-    #       image: "{{ image }}"
-    #       service_account_email: "{{ service_account_email }}"
-    #       credentials_file: "{{ credentials_file }}"
-    #       project_id: "{{ project_id }}"
-    #       tags: webserver,http-server,https-server
-    #   register: gce
-
-    - name: Create base disk
-      gcp_compute_disk:
-        name: "{{ gcp_web_disk }}"
-        source_image: "{{ gcp_web_image }}"
-        zone: "{{ gcp_zone }}"
-        project: "{{ gcp_project }}"
-        auth_kind: "{{ gcp_cred_kind }}"
-        service_account_file: "{{ gcp_cred_file }}"
-        scopes: "{{ gcp_scopes }}"
-      register: disk1
-
-    - name: Create log disk
-      gcp_compute_disk:
-        name: "{{ gcp_nfs_disk }}-log-1"
-        size_gb: 20
-        zone: "{{ gcp_zone }}"
-        project: "{{ gcp_project }}"
-        auth_kind: "{{ gcp_cred_kind }}"
-        service_account_file: "{{ gcp_cred_file }}"
-        scopes: "{{ gcp_scopes }}"
-      register: disk2
-    
+    # Outside-facing address for load balancer
     - name: Create address
       gcp_compute_address:
         name: "{{ gcp_web_address }}"
@@ -48,77 +16,186 @@
         scopes: "{{ gcp_scopes }}"
       register: address
 
-    - name: Create instance
-      gcp_compute_instance:
-        name: "{{ gcp_web_machine_name }}"
-        machine_type: "{{ gcp_web_machine_type }}"
-        disks:
-          - auto_delete: true
-            boot: true
-            source: "{{ disk1 }}"
-          - auto_delete: true
+    # Template to generate instances from (for load balancing spin-up / down)
+    - name: Create instance template
+      gcp_compute_instance_template:
+        name: "{{ gcp_web_template }}"
+        properties:
+          machine_type: "{{ gcp_web_machine_type }}"
+          disks:
+          - auto_delete: 'true'
+            boot: 'true'
+            initialize_params:
+              source_image: "{{ gcp_web_image }}"
+          - auto_delete: 'false'
             boot: false
-            source: "{{ disk2 }}"
-        metadata:
-          enable-oslogin: True
-        network_interfaces:
-           - access_configs:
+            initialize_params:
+#              disk_name: "{{ gcp_web_disk }}-log"
+              disk_size_gb: 20
+          metadata:
+            enable-oslogin: True
+          network_interfaces:
+            - access_configs:
               - name: 'External NAT'
+                type: ONE_TO_ONE_NAT
                 nat_ip: "{{ address }}"
-                type: 'ONE_TO_ONE_NAT'
+          tags:
+            items: webserver,http-server,https-server
+        project: "{{ gcp_project }}" 
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+        state: present
+      register: instancetemplate
+
+    # Instance manager (which will work with the backend to manage instances)
+    - name: Create instance group manager
+      gcp_compute_instance_group_manager:
+        name: "{{ gcp_web_group }}"
+        base_instance_name: "{{ gcp_web_instance }}"
+        instance_template: "{{ instancetemplate }}"
+        target_size: "{{ gcp_web_group_size }}"
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}" 
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+        state: present
+      register: instancegroupmanager
+
+################### OLD OUTPUT FORMAT (GCE)
+#{'failed': False,
+# 'instance_names': ['test1', 'test2'],
+# 'changed': True,
+# 'zone': 'us-central1-a',
+# 'instance_data':
+# [{
+#   'disks': ['test1'],
+#   'public_ip': '34.67.40.249',
+#   'private_ip': '10.128.0.36',
+#   'zone': 'us-central1-a',
+#   'subnetwork': 'default',
+#   'network': 'default',
+#   'name': 'test1',
+#   'tags': ['http-server', 'https-server', 'webserver'],
+#   'status': 'RUNNING',
+#   'metadata': {},
+#   'image': 'ubuntu-1804-bionic-v20190722a',
+#   'machine_type': 'n1-standard-1'
+#  },{
+#   'disks': ['test2'],
+#   'public_ip': '34.132.52.67',
+#   'private_ip': '10.128.0.37',
+#   'zone': 'us-central1-a',
+#   'subnetwork': 'default',
+#   'network': 'default',
+#   'name': 'test2',
+#   'tags': ['http-server', 'https-server', 'webserver'],
+#   'status': 'RUNNING',
+#   'metadata': {},
+#   'image': 'ubuntu-1804-bionic-v20190722a',
+#   'machine_type': 'n1-standard-1'
+#  }],
+#  'state': 'present'}"
+
+    # Specification for checking on the health of the servers
+    - name: Create HTTP health check
+      gcp_compute_http_health_check:
+        name: "{{ gcp_web_healthcheck }}"
+        host: "{{ gcp_web_healthcheck_host }}"
+        port: 80
+        request_path: "{{ gcp_web_healthcheck_path }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+        state: present
+      register: healthcheck
+
+    # The backend service itself, which will direct traffic to instances
+    - name: create a backend service
+      gcp_compute_backend_service:
+        name: "{{ gcp_web_service }}"
+        backends:
+        - group: "{{ instancegroupmanager.instanceGroup }}"
+        health_checks:
+        - "{{ healthcheck.selfLink }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: webservice
+
+    # TODO: Make sure we wait for all instances to be created. (Something might be delaying them...)
+    # Once the instances have spun up (intially), gather info on them.
+    - name: Gather data on instances in group
+      gcp_compute_instance_info:
+        filters:
+        - name = {{ gcp_web_instance }}-*
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}" 
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: instancedata
+
+    # Create a log disk for each instance
+      gcp_compute_disk:
+        name: "{{ item.name }}-log"
+        size_gb: 20
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
         service_account_file: "{{ gcp_cred_file }}"
         scopes: "{{ gcp_scopes }}"
-        tags: webserver,http-server,https-server
-      register: instance
+      with_items: "{{ instancedata.resources }}"
+      register: logdisks
 
-    # - name: Assemble qualified instance names
-    #   shell: echo {{ item.zone }}/{{ item.name }}
-    #   with_items: "{{ gce.instance_data }}"
-    #   register: qnames
-
-    # - name: Create load balancing rule
-    #   gce_lb:
-    #     name: lb
-    #     external_ip: pencilcode-ip
-    #     region: us-central1
-    #     members: "{{ qnames.results|map(attribute='stdout')|list }}"
-    #     httphealthcheck_name: lb-check
-    #     httphealthcheck_host: pencil.io
-    #     httphealthcheck_port: 80
-    #     httphealthcheck_path: "/load/first"
-    #     service_account_email: "{{ service_account_email }}"
-    #     credentials_file: "{{ credentials_file }}"
-    #     project_id: "{{ project_id }}"
-
-    # https://docs.ansible.com/ansible/latest/collections/google/cloud/gcp_compute_backend_service_module.html
-    - name: create a HTTP health check
-      gcp_compute_http_health_check:
-        name: httphealthcheck-backendservice
-        healthy_threshold: 10
-        port: 80
-        timeout_sec: 2
-        unhealthy_threshold: 5
+    # Attach log disks to instances
+    - name: Create log disk for each instance
+      gcp_compute_instance:
+        name: "{{ item.2.name }}"
+        zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
         service_account_file: "{{ gcp_cred_file }}"
-        state: present
-      register: healthcheck
+        scopes: "{{ gcp_scopes }}"
+        disks:
+          - auto_delete: false
+            boot: false
+            source: "{{ logdisks[item.0] }}"
+        with_indexed_items: "{{ instancedata.resources }}"
 
-    - name: Wait for SSH to come up
+    # Make sure the machines are booted before doing anything else
+    - name: Wait for service SSH to come up
       wait_for: host={{ address.address }} port=22 delay=5 timeout=120
 
-    - name: Add host to groupname
-      add_host: hostname={{ address.address }} groupname=launched
+    # NOTE: instances won't work remotely - this must be done from the instance's network!
+    - name: Wait for SSH of instances to come up
+      wait_for: host={{ item.networkInterfaces[0].networkIP }} port=22 delay=5 timeout=120
+      with_items: "{{ instancedata.resources }}"
 
-    - name: Reset known-hosts for IPs
+    # Set up SSH files / variables / etc
+    - name: Reset known-hosts for service IP
       command: ssh-keygen -R {{ address.address }}
 
-    - name: Add the new instance as a known host
+    - name: Add the new service as a known host
       shell: ssh-keyscan {{ address.address }} >> ~/.ssh/known_hosts
 
+    - name: Reset known-hosts for instance IPs
+      command: ssh-keygen -R {{ item.networkInterfaces[0].networkIP }}
+      with_items: "{{ instancedata.resources }}"
+
+    - name: Add the instances as a known hosts
+      shell: ssh-keyscan {{ item.networkInterfaces[0].networkIP }} >> ~/.ssh/known_hosts
+      with_items: "{{ instancedata.resources }}"
+
+    - name: Add instance hosts to groupname
+      add_host: hostname={{ item.networkInterfaces[0].networkIP }} groupname=launched
+      with_items: "{{ instancedata.resources }}"
+
+
+# Set up the the disks for the instances.
 - name: Set up disks
   hosts: launched
   connection: ssh
@@ -154,32 +231,32 @@
         owner: "{{ gcp_service_user }}"
         dest: "/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
     
-    - name: Set up filesystem for log disks
-      filesystem:
-        fstype: ext4
-        dev: /dev/disk/by-id/google-persistent-disk-1
-        opts: "-E lazy_itable_init=0,lazy_journal_init=0,discard"
+#    - name: Set up filesystem for log disks
+#      filesystem:
+#        fstype: ext4
+#        dev: /dev/disk/by-id/google-persistent-disk-1
+#        opts: "-E lazy_itable_init=0,lazy_journal_init=0,discard"
 
-    - name: Mount log disks
-      mount:
-        path: /var/log
-        fstype: ext4
-        src: /dev/disk/by-id/google-persistent-disk-1
-        state: mounted
-      notify: restart rsyslog
+#    - name: Mount log disks
+#      mount:
+#        path: /var/log
+#        fstype: ext4
+#        src: /dev/disk/by-id/google-persistent-disk-1
+#        state: mounted
+#      notify: restart rsyslog
 
-    - name: install nfs client
-      apt: pkg=nfs-common state=present
+#    - name: install nfs client
+#      apt: pkg=nfs-common state=present
 
-    - name: Mount data disk
-      mount: 
-        path: /mnt/datadisk
-        fstype: nfs
-        src: nfs:/data
-        opts: rw,sync,nfsvers=3
-        state: mounted
+#    - name: Mount data disk
+#      mount: 
+#        path: /mnt/datadisk
+#        fstype: nfs
+#        src: nfs:/data
+#        opts: rw,sync,nfsvers=3
+#        state: mounted
 
-  handlers:
-    - name: restart rsyslog
-      service: name=rsyslog state=restarted
+#  handlers:
+#    - name: restart rsyslog
+#      service: name=rsyslog state=restarted
 

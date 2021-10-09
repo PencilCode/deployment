@@ -21,11 +21,22 @@ gcp_nfs_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/g
 gcp_nfs_machine_name: ansible-nfs
 gcp_nfs_machine_type: n1-standard-1
 
+# Instance Group Information - Web VMs
 gcp_web_address: ansible-web-address
+gcp_web_template: anisble-web-template
 gcp_web_disk: ansible-web-disk
 gcp_web_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330'
-gcp_web_machine_name: ansible-web
 gcp_web_machine_type: n1-standard-1
+
+gcp_web_instance: ansible-web-instance
+gcp_web_group: ansible-web-group
+gcp_web_group_size: 3
+
+# Backend / Load-Balancing Information - Web VMs
+gcp_web_healthcheck: ansible-web-healthcheck
+gcp_web_healthcheck_host: pencil.io
+gcp_web_healthcheck_path: '/load/first'
+gcp_web_service: ansible-web-service
 
 # User / Permissions Information
 # ------------------------------
