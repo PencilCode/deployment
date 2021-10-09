@@ -175,8 +175,8 @@
           - apache-libcloud
           - pyopenssl
 
-#    - name: Sync latest deployment scripts
-#      git:
-#        repo: https://github.com/PencilCode/deployment
-#        dest: "/home/{{ gcp_service_user }}/deployment"
-#        version: pencil.io
+    - name: Sync latest deployment scripts
+      git:
+        repo: https://github.com/PencilCode/deployment
+        dest: "/home/{{ gcp_service_user }}/deployment"
+        version: pencilio
