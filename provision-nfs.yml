@@ -122,7 +122,7 @@
 
     - name: Copy over ansible service account credential file
       copy:
-        content: "{{ gcp_cred_file }}"
+        src: "{{ gcp_cred_file }}"
         dest: "{{ gcp_cred_file }}"
 
     - name: Create SSH key directory (if it doesn't exist yet)

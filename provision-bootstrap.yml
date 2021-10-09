@@ -81,7 +81,7 @@
 
     - name: Copy over ansible service account credential file
       copy:
-        content: "{{ gcp_cred_file }}"
+        src: "{{ gcp_cred_file }}"
         dest: "{{ gcp_cred_file }}"
 
     - name: Create SSH key directory (if it doesn't exist yet)
@@ -91,13 +91,17 @@
         state: directory
 
     - name: Copy service account private SSH key
-      copy: src={{ ansible_ssh_private_key_file }} mode=400 owner="{{ gcp_service_user }}"
-            dest="/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
+      copy:
+        src: "{{ ansible_ssh_private_key_file }}"
+        mode: 400
+        owner: "{{ gcp_service_user }}"
+        dest: "/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
 
     - name: Add github.com as known host
       lineinfile:
         dest: "/home/{{ gcp_service_user }}/.ssh/known_hosts"
         create: yes
+        owner: "{{ gcp_service_user }}"
         state: present
         line: "{{ lookup('pipe', 'ssh-keyscan -t rsa github.com') }}"
         regexp: "^github\\.com"
@@ -173,6 +177,7 @@
         name:
           - ansible
           - apache-libcloud
+          - google-auth
           - pyopenssl
 
     - name: Sync latest deployment scripts
