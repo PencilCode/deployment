@@ -3,46 +3,60 @@
 - name: Set up unix user accounts
   hosts: tag_webserver
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
+  vars_files: vars/gcp_config.yml
 
   tasks:
     - name: Create source user
-      user: name=source uid=1100 group=users shell=/bin/bash
+      user:
+        name: source
+        uid: 1100
+        group: users
+        shell: /bin/bash
 
     - name: Fix sudoers file to allow sudo -u
-      replace: >
-        dest=/etc/sudoers
-        regexp='^(\w+) ALL=NOPASSWD: ALL$'
-        replace='\1 ALL=(ALL) NOPASSWD: ALL'
-        validate='visudo -cf %s'
+#      replace: >
+      replace:
+        dest: /etc/sudoers
+        regexp: '^(\w+) ALL=NOPASSWD: ALL$'
+        replace: '\1 ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
 
 
 - name: Install standard packages
   hosts: tag_webserver
   gather_facts: no
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
+  vars_files: vars/gcp_config.yml
 
   tasks:
     - name: Install https support for apt
-      apt: name=apt-transport-https
+      apt:
+        update_cache: yes
+        name:
+        - apt-transport-https
+        state: latest
 
-    - name: upgrade apt packages to the latest version
-      apt: upgrade=dist
+    - name: Upgrade apt packages to the latest version
+      apt:
+        upgrade: dist
 
-    # original url=https://deb.nodesource.com/gpgkey/nodesource.gpg.key
     - name: Add nodesource signing key
-      apt_key: >
-        url=https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
-        id=68576280
+      apt_key:
+        url: https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
+        id: 68576280
 
     - name: Add nodesource apt repository
-      apt_repository: >
-        repo='deb https://deb.nodesource.com/node_6.x xenial main'
+      apt_repository:
+        repo: deb https://deb.nodesource.com/node_6.x xenial main
 
     - name: Install apt packages
-      apt: pkg={{ item }} state=latest
-      with_items:
+      apt:
+        update_cache: yes
+        name:
         - build-essential
         - nginx
         - uwsgi
@@ -53,20 +67,26 @@
         - logrotate
         - vim
         - bash-completion
+        state: latest
 
     - name: Create apache-style nginx configuration directories
-      file: path={{ item }} state=directory
+      file:
+        path: {{ item }}
+        state: directory
       with_items:
        - /etc/nginx/sites-enabled
        - /etc/nginx/sites-available
 
     - name: Replace nginx top-level configuration, to run as www-data
-      copy: src=files/nginx.conf dest=/etc/nginx/nginx.conf
+      copy:
+        src: files/nginx.conf
+        dest: /etc/nginx/nginx.conf
       notify:
         - restart nginx
 
     - name: Remove nginx default website
-      file: path={{ item }} state=absent
+        path: {{ item }}
+        state: absent
       with_items:
        - /etc/nginx/sites-enabled/default
        - /etc/nginx/conf.d
@@ -87,31 +107,34 @@
 - name: Pull and build project code
   hosts: tag_webserver
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
+  vars_files: vars/gcp_config.yml
+
   roles:
     - role: nodeproject
-      repo: https://github.com/cacticouncil/pencilcode.git
+      repo: https://github.com/PencilCode/pencilcode.git
       dir: pencilcode
       version: master
       tags: pull_pencilcode
     - role: nodeproject
-      repo: https://github.com/cacticouncil/pencilcode.git
+      repo: https://github.com/PencilCode/pencilcode.git
       dir: staging
       tags: pull_staging
     - role: nodeproject
-      repo: https://github.com/cacticouncil/codegym.git
+      repo: https://github.com/PencilCode/codegym.git
       dir: gym 
       tags: pull_gym
     - role: nodeproject
-      repo: https://github.com/cacticouncil/blog.git
+      repo: https://github.com/PencilCode/blog.git
       dir: blog
       tags: pull_blog
     - role: nodeproject
-      repo: https://github.com/cacticouncil/reference.git
+      repo: https://github.com/PencilCode/reference.git
       dir: ref
       tags: pull_ref
     - role: nodeproject
-      repo: https://github.com/cacticouncil/animate.git
+      repo: https://github.com/PencilCode/animate.git
       dir: animate
       tags: pull_animate
 
@@ -119,9 +142,11 @@
 - name: Link pencilcode service directories
   hosts: tag_webserver
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files:
     - vars/secrets.yml
+    - vars/gcp_config.yml
 
   pre_tasks:
     - file: path=/mnt/datadisk/{{ item }} state=directory mode=755
@@ -136,12 +161,12 @@
             owner=www-data group=www-data
 
   roles:
-    - role: topdomain
-      domain_dir: pencilcode.org
-      source_dir: pencilcode
-    - role: topdomain
-      domain_dir: pencil.cc
-      source_dir: staging
+#    - role: topdomain
+#      domain_dir: pencilcode.org
+#      source_dir: pencilcode
+#    - role: topdomain
+#      domain_dir: pencil.cc
+#      source_dir: staging
       # domain_ssl_key: "{{ pencilcc_ssl_key }}"
       # domain_ssl_file: "pencilcc"
     - role: topdomain
@@ -159,10 +184,12 @@
 - name: Setup fishs service
   hosts: tag_webserver
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
+  vars_files: vars/gcp_config.yml
   roles:
     - role: nodeproject
-      repo: https://github.com/cacticouncil/fish.git
+      repo: https://github.com/PencilCode/fish.git
       dir: fish
       tags: pull_fish
   tasks:
@@ -190,13 +217,15 @@
 - name: Setup main pencilcode repository
   hosts: tag_webserver
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files:
     - vars/secrets.yml
+    - vars/gcp_config.yml
 
   roles:
     - role: nodeproject
-      repo: "https://github.com/cacticouncil/pencilcode.git"
+      repo: "https://github.com/PencilCode/pencilcode.git"
       dir: pencilcode
       tags: pull_pencilcode
       version: master
@@ -273,7 +302,9 @@
 - name: Set up logrotate configuration
   hosts: tag_webserver
   connection: ssh
+  remote_user: "{{ gcp_service_user }}"
   become: yes
+  vars_files: vars/gcp_config.yml
 
   tasks:
     - copy: src=files/logrotate/{{ item }} dest=/etc/logrotate.d/{{ item }}
