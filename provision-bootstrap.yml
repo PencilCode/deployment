@@ -66,14 +66,12 @@
   connection: ssh
   remote_user: "{{ gcp_service_user }}"
   become: yes
-
   vars_files: vars/gcp_config.yml
 
   vars:
     - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
 
   tasks:
-
     - name: Make ansible service account credential directory
       file:
         path: "{{ gcp_cred_file | dirname }}"

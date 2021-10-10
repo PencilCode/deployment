@@ -95,7 +95,7 @@
       wait_for: host={{ address.address }} port=22 delay=5 timeout=120
 
     - name: Add host to groupname
-      add_host: hostname={{ address.address }} groupname=launched
+      add_host: hostname={{ gcp_nfs_machine_name }} groupname=launched
 
     - name: Reset known-hosts for IPs
       command: ssh-keygen -R {{ address.address }}
@@ -107,15 +107,14 @@
 - name: Set up disks
   hosts: launched
   connection: ssh
-  become: yes
   remote_user: "{{ gcp_service_user }}"
+  become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
     - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
 
   tasks:
-
     - name: Make ansible service account credential directory
       file:
         path: "{{ gcp_cred_file | dirname }}"
@@ -213,8 +212,8 @@
   hosts: launched
   connection: ssh
   gather_facts: no 
-  become: yes
   remote_user: "{{ gcp_service_user }}"
+  become: yes
   vars_files: vars/gcp_config.yml
 
   roles:
@@ -227,19 +226,23 @@
   hosts: launched
   connection: ssh
   gather_facts: no
-  become: yes
   remote_user: "{{ gcp_service_user }}"
+  become: yes
   vars_files: vars/gcp_config.yml
 
-   tasks:
-     - name: Change permission of cron.daily mlocate to disable execution.
-       file: /etc/cron.daily/mlocate mode=a-x
+  tasks:
+    - name: Change permission of cron.daily mlocate to disable execution.
+      file:
+        path: "/etc/cron.daily/mlocate"
+        mode: "a-x"
 
 - name: Set up rsnapshot
   hosts: launched
   connection: ssh
   gather_facts: no
+  remote_user: "{{ gcp_service_user }}"
   become: yes
+  vars_files: vars/gcp_config.yml
   
   tasks:
     - name: Install rsnapshot
