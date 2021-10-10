@@ -1,10 +1,10 @@
 - name: Set up unix user accounts
   hosts: localhost
-  become: yes
   gather_facts: no
   connection: local
   vars_files: vars/gcp_config.yml
 
+  tasks:
     - name: Gather data on instances in group
       gcp_compute_instance_info:
         filters:
@@ -37,7 +37,6 @@
         shell: /bin/bash
 
     - name: Fix sudoers file to allow sudo -u
-#      replace: >
       replace:
         dest: /etc/sudoers
         regexp: '^(\w+) ALL=NOPASSWD: ALL$'
@@ -106,6 +105,7 @@
         - restart nginx
 
     - name: Remove nginx default website
+      file:
         path: "{{ item }}"
         state: absent
       with_items:
@@ -166,7 +166,7 @@
   remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files:
-    - vars/secrets.yml
+#    - vars/secrets.yml
     - vars/gcp_config.yml
 
   pre_tasks:
@@ -241,7 +241,7 @@
   remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files:
-    - vars/secrets.yml
+#    - vars/secrets.yml
     - vars/gcp_config.yml
 
   roles:
