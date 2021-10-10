@@ -71,7 +71,7 @@
 
     - name: Create apache-style nginx configuration directories
       file:
-        path: {{ item }}
+        path: "{{ item }}"
         state: directory
       with_items:
        - /etc/nginx/sites-enabled
@@ -85,7 +85,7 @@
         - restart nginx
 
     - name: Remove nginx default website
-        path: {{ item }}
+        path: "{{ item }}"
         state: absent
       with_items:
        - /etc/nginx/sites-enabled/default
