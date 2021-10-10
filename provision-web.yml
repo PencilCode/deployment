@@ -140,6 +140,7 @@
       register: instancedata
 
     # Create a log disk for each instance
+    - name: Create log disk for each instance
       gcp_compute_disk:
         name: "{{ item.name }}-log"
         size_gb: 20
