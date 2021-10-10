@@ -1,7 +1,28 @@
-# Deploy a pencilcode web server
-
 - name: Set up unix user accounts
-  hosts: tag_webserver
+  hosts: localhost
+  become: yes
+  gather_facts: no
+  connection: local
+  vars_files: vars/gcp_config.yml
+
+    - name: Gather data on instances in group
+      gcp_compute_instance_info:
+        filters:
+        - name = {{ gcp_web_instance }}-*
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+      register: instancedata
+
+    - name: Add host to groupname
+      add_host: hostname={{ item.name }} groupname=server_instances
+      with_items: "{{ instancedata.resources }}"
+
+# Deploy a pencilcode web server
+- name: Set up unix user accounts
+  hosts: server_instances
   connection: ssh
   remote_user: "{{ gcp_service_user }}"
   become: yes
@@ -25,7 +46,7 @@
 
 
 - name: Install standard packages
-  hosts: tag_webserver
+  hosts: server_instances
   gather_facts: no
   connection: ssh
   remote_user: "{{ gcp_service_user }}"
@@ -105,7 +126,7 @@
 
 
 - name: Pull and build project code
-  hosts: tag_webserver
+  hosts: server_instances
   connection: ssh
   remote_user: "{{ gcp_service_user }}"
   become: yes
@@ -182,7 +203,7 @@
         - ref
 
 - name: Setup fishs service
-  hosts: tag_webserver
+  hosts: server_instances
   connection: ssh
   remote_user: "{{ gcp_service_user }}"
   become: yes
@@ -215,7 +236,7 @@
 
 
 - name: Setup main pencilcode repository
-  hosts: tag_webserver
+  hosts: server_instances
   connection: ssh
   remote_user: "{{ gcp_service_user }}"
   become: yes
@@ -300,7 +321,7 @@
       systemd: name=uwsgi daemon_reload=yes state=restarted
 
 - name: Set up logrotate configuration
-  hosts: tag_webserver
+  hosts: server_instances
   connection: ssh
   remote_user: "{{ gcp_service_user }}"
   become: yes
@@ -319,7 +340,7 @@
       systemd: name=logrotate daemon_reload=yes state=restarted
 
 - name: Ensure all services are started
-  hosts: tag_webserver
+  hosts: server_instances
   connection: ssh
   become: yes
 
