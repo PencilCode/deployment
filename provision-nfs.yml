@@ -103,6 +103,7 @@
     - name: Add the new instance as a known host
       shell: ssh-keyscan {{ address.address }} >> ~/.ssh/known_hosts
 
+
 - name: Set up disks
   hosts: launched
   connection: ssh
@@ -229,23 +230,31 @@
   become: yes
   remote_user: "{{ gcp_service_user }}"
   vars_files: vars/gcp_config.yml
-  # tasks:
-  #   - name: Change permission of cron.daily mlocate to disable execution.
-  #     file: /etc/cron.daily/mlocate mode=a-x
 
-# - name: Set up rsnapshot
-#   hosts: launched
-#   connection: ssh
-#   gather_facts: no
-#   become: yes
+   tasks:
+     - name: Change permission of cron.daily mlocate to disable execution.
+       file: /etc/cron.daily/mlocate mode=a-x
+
+- name: Set up rsnapshot
+  hosts: launched
+  connection: ssh
+  gather_facts: no
+  become: yes
   
-#   tasks:
-#     - name: Install rsnapshot
-#       apt: name=rsnapshot state=latest
+  tasks:
+    - name: Install rsnapshot
+      apt:
+        update_cache: yes
+        name:
+        - rsnapshot
+        state: latest
 
-#     - name: Configure rsnapshot
-#       copy: src=files/rsnapshot.conf dest=/etc/rsnapshot.conf
+    - name: Configure rsnapshot
+      copy:
+        src: "files/rsnapshot.conf"
+        dest: "/etc/rsnapshot.conf"
 
-#     - name: Configure rsnapshot cron
-#       copy: src=files/rsnapshot.cron dest=/etc/cron.d/rsnapshot
-
+    - name: Configure rsnapshot cron
+      copy:
+        src: "files/rsnapshot.cron"
+        dest: "/etc/cron.d/rsnapshot"
