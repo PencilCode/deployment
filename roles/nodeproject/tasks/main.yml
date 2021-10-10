@@ -1,30 +1,34 @@
 # Uses vars:
 # repo - the URL of the repo to build
 # dir - the name of the directory under /home/source
+# version - branch to clone / use
 # force_build - true to rebuild everything
 
 - name: sync {{ dir }} to latest code
-  git: >
-    repo={{ repo }}
-    dest=/home/source/{{ dir }}
+  git:
+    repo: "{{ repo }}"
+    dest: "/home/source/{{ dir }}"
   become_user: source
   register: sync
   when: version is not defined
+
 - name: sync {{ dir }} to latest code
-  git: >
-    repo={{ repo }}
-    dest=/home/source/{{ dir }}
-    version={{ version }}
+  git:
+    repo: "{{ repo }}"
+    dest: "/home/source/{{ dir }}"
+    version: "{{ version }}"
   become_user: source
   register: sync
   when: version is defined
+
 - name: update {{ dir }} to current npm depenencies
   npm: path=/home/source/{{ dir }}
   become_user: source
   register: install
+
 - name: rebuild {{ dir }}
   command: npm run build
   become_user: source
   args:
-    chdir: /home/source/{{ dir }}
-  when: sync|changed or install|changed or force_build
+    chdir: "/home/source/{{ dir }}"
+  when: sync.changed or install.changed or force_build

@@ -38,6 +38,10 @@ gcp_web_healthcheck_host: pencil.io
 gcp_web_healthcheck_path: '/load/first'
 gcp_web_service: ansible-web-service
 
+# Repo information
+gcp_main_branch: pencil-io
+
+
 # User / Permissions Information
 # ------------------------------
 # gcp_admin_user:	google username of the administrator who will connect to the bootstrap instance.
