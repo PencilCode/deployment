@@ -107,16 +107,22 @@
         regexp: "^github\\.com"
 
     - name: Copy over miscellaneous helpful files
-      copy: src=~/{{ item }}
-            dest=/home/{{ gcp_service_user }}/{{ item }}
+      copy:
+        src: "~/{{ item }}"
+        dest: "/home/{{ gcp_service_user }}/{{ item }}"
       with_items:
-       - .gitconfig
+        - .gitconfig
 
     - name: Install https support for apt
-      apt: name=apt-transport-https update_cache=yes
+      apt:
+        update_cache: yes
+        name:
+        - apt-transport-https
+        state: latest
 
     - name: Upgrade apt packages to the latest version
-      apt: upgrade=dist
+      apt:
+        upgrade: dist
 
     - name: Add nodesource signing key
       apt_key:
@@ -128,7 +134,8 @@
         repo: deb https://deb.nodesource.com/node_0.12 wheezy main
 
     - name: Upgrade apt packages to the latest version
-      apt: upgrade=dist
+      apt:
+        upgrade: dist
 
     - name: Install base apt packages
       apt:
