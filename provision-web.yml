@@ -110,7 +110,7 @@
 
     # NOTE: instances won't work remotely - this must be done from the instance's network!
     - name: Wait for SSH of instances to come up
-      wait_for: host={{ item.networkInterfaces[0].networkIP }} port=22 delay=5 timeout=120
+      wait_for: host={{ item.name }} port=22 delay=5 timeout=120
       with_items: "{{ instancedata.resources }}"
 
     # Set up SSH files / variables / etc
@@ -121,11 +121,11 @@
       shell: ssh-keyscan {{ address.address }} >> ~/.ssh/known_hosts
 
     - name: Reset known-hosts for instance IPs
-      command: ssh-keygen -R {{ item.networkInterfaces[0].networkIP }}
+      command: ssh-keygen -R {{ item.name }}
       with_items: "{{ instancedata.resources }}"
 
     - name: Add the instances as a known hosts
-      shell: ssh-keyscan {{ item.networkInterfaces[0].networkIP }} >> ~/.ssh/known_hosts
+      shell: ssh-keyscan {{ item.name }} >> ~/.ssh/known_hosts
       with_items: "{{ instancedata.resources }}"
 
     - name: Add instance hosts to groupname
