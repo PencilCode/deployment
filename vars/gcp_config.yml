@@ -10,14 +10,14 @@ gcp_zone: "us-central1-a"
 # Instance Information - Bootstrap VM
 gcp_bootstrap_address: ansible-bootstrap-address
 gcp_bootstrap_disk: ansible-bootstrap-disk
-gcp_bootstrap_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330'
+gcp_bootstrap_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210325'
 gcp_bootstrap_machine_name: ansible-bootstrap
 gcp_bootstrap_machine_type: f1-micro
 
 # Instance Information - NFS VM
 gcp_nfs_address: ansible-nfs-address
 gcp_nfs_disk: ansible-nfs-disk
-gcp_nfs_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330'
+gcp_nfs_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210325'
 gcp_nfs_machine_name: ansible-nfs
 gcp_nfs_machine_type: n1-standard-1
 
@@ -25,7 +25,7 @@ gcp_nfs_machine_type: n1-standard-1
 gcp_web_address: ansible-web-address
 gcp_web_template: anisble-web-template
 gcp_web_disk: ansible-web-disk
-gcp_web_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170330'
+gcp_web_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210325'
 gcp_web_machine_type: n1-standard-1
 
 gcp_web_instance: ansible-web-instance
