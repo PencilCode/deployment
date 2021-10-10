@@ -28,9 +28,9 @@
             initialize_params:
               source_image: "{{ gcp_web_image }}"
           - auto_delete: 'false'
-            boot: false
+            boot: 'false'
+            device_name: "{{ gcp_web_instance }}-log"
             initialize_params:
-#              disk_name: "{{ gcp_web_disk }}-log"
               disk_size_gb: 20
           metadata:
             enable-oslogin: True
@@ -62,41 +62,6 @@
         scopes: "{{ gcp_scopes }}"
         state: present
       register: instancegroupmanager
-
-################### OLD OUTPUT FORMAT (GCE)
-#{'failed': False,
-# 'instance_names': ['test1', 'test2'],
-# 'changed': True,
-# 'zone': 'us-central1-a',
-# 'instance_data':
-# [{
-#   'disks': ['test1'],
-#   'public_ip': '34.67.40.249',
-#   'private_ip': '10.128.0.36',
-#   'zone': 'us-central1-a',
-#   'subnetwork': 'default',
-#   'network': 'default',
-#   'name': 'test1',
-#   'tags': ['http-server', 'https-server', 'webserver'],
-#   'status': 'RUNNING',
-#   'metadata': {},
-#   'image': 'ubuntu-1804-bionic-v20190722a',
-#   'machine_type': 'n1-standard-1'
-#  },{
-#   'disks': ['test2'],
-#   'public_ip': '34.132.52.67',
-#   'private_ip': '10.128.0.37',
-#   'zone': 'us-central1-a',
-#   'subnetwork': 'default',
-#   'network': 'default',
-#   'name': 'test2',
-#   'tags': ['http-server', 'https-server', 'webserver'],
-#   'status': 'RUNNING',
-#   'metadata': {},
-#   'image': 'ubuntu-1804-bionic-v20190722a',
-#   'machine_type': 'n1-standard-1'
-#  }],
-#  'state': 'present'}"
 
     # Specification for checking on the health of the servers
     - name: Create HTTP health check
@@ -140,32 +105,32 @@
       register: instancedata
 
     # Create a log disk for each instance
-    - name: Create log disk for each instance
-      gcp_compute_disk:
-        name: "{{ item.name }}-log"
-        size_gb: 20
-        zone: "{{ gcp_zone }}"
-        project: "{{ gcp_project }}"
-        auth_kind: "{{ gcp_cred_kind }}"
-        service_account_file: "{{ gcp_cred_file }}"
-        scopes: "{{ gcp_scopes }}"
-      with_items: "{{ instancedata.resources }}"
-      register: logdisks
+#    - name: Create log disk for each instance
+#      gcp_compute_disk:
+#        name: "{{ item.name }}-log"
+#        size_gb: 20
+#        zone: "{{ gcp_zone }}"
+#        project: "{{ gcp_project }}"
+#        auth_kind: "{{ gcp_cred_kind }}"
+#        service_account_file: "{{ gcp_cred_file }}"
+#        scopes: "{{ gcp_scopes }}"
+#      register: logdisks
+#      with_items: "{{ instancedata.resources }}"
 
     # Attach log disks to instances
-    - name: Create log disk for each instance
-      gcp_compute_instance:
-        name: "{{ item.2.name }}"
-        zone: "{{ gcp_zone }}"
-        project: "{{ gcp_project }}"
-        auth_kind: "{{ gcp_cred_kind }}"
-        service_account_file: "{{ gcp_cred_file }}"
-        scopes: "{{ gcp_scopes }}"
-        disks:
-          - auto_delete: false
-            boot: false
-            source: "{{ logdisks[item.0] }}"
-        with_indexed_items: "{{ instancedata.resources }}"
+#    - name: Attach log disks to instances
+#      gcp_compute_instance:
+#        name: "{{ item.1.name }}"
+#        zone: "{{ gcp_zone }}"
+#        project: "{{ gcp_project }}"
+#        auth_kind: "{{ gcp_cred_kind }}"
+#        service_account_file: "{{ gcp_cred_file }}"
+#        scopes: "{{ gcp_scopes }}"
+#        disks:
+#          - auto_delete: false
+#            boot: false
+#            source: "{{ logdisks.results[item.0] }}"
+#      with_indexed_items: "{{ instancedata.resources }}"
 
     # Make sure the machines are booted before doing anything else
     - name: Wait for service SSH to come up
@@ -192,7 +157,7 @@
       with_items: "{{ instancedata.resources }}"
 
     - name: Add instance hosts to groupname
-      add_host: hostname={{ item.networkInterfaces[0].networkIP }} groupname=launched
+      add_host: hostname={{ item.name }} groupname=launched
       with_items: "{{ instancedata.resources }}"
 
 
@@ -216,7 +181,7 @@
 
     - name: Copy over ansible service account credential file
       copy:
-        content: "{{ gcp_cred_file }}"
+        src: "{{ gcp_cred_file }}"
         dest: "{{ gcp_cred_file }}"
 
     - name: Create SSH key directory (if it doesn't exist yet)
@@ -232,32 +197,36 @@
         owner: "{{ gcp_service_user }}"
         dest: "/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
     
-#    - name: Set up filesystem for log disks
-#      filesystem:
-#        fstype: ext4
-#        dev: /dev/disk/by-id/google-persistent-disk-1
-#        opts: "-E lazy_itable_init=0,lazy_journal_init=0,discard"
+    - name: Set up filesystem for log disks
+      filesystem:
+        fstype: ext4
+        dev: /dev/disk/by-id/google-{{ gcp_web_instance }}-log
+        opts: "-E lazy_itable_init=0,lazy_journal_init=0,discard"
 
-#    - name: Mount log disks
-#      mount:
-#        path: /var/log
-#        fstype: ext4
-#        src: /dev/disk/by-id/google-persistent-disk-1
-#        state: mounted
-#      notify: restart rsyslog
+    - name: Mount log disks
+      mount:
+        path: /var/log
+        fstype: ext4
+        src: /dev/disk/by-id/google-{{ gcp_web_instance }}-log
+        state: mounted
+      notify: restart rsyslog
 
-#    - name: install nfs client
-#      apt: pkg=nfs-common state=present
+    - name: Install nfs client
+      apt:
+        update_cache: yes
+        name:
+        - nfs-common
+        state: latest
 
-#    - name: Mount data disk
-#      mount: 
-#        path: /mnt/datadisk
-#        fstype: nfs
-#        src: nfs:/data
-#        opts: rw,sync,nfsvers=3
-#        state: mounted
+    - name: Mount data disk
+      mount: 
+        path: /mnt/datadisk
+        fstype: nfs
+        src: "{{ gcp_nfs_machine_name }}:/data"
+        opts: rw,sync,nfsvers=3
+        state: mounted
 
-#  handlers:
-#    - name: restart rsyslog
-#      service: name=rsyslog state=restarted
+  handlers:
+    - name: restart rsyslog
+      service: name=rsyslog state=restarted
 
