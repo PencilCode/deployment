@@ -23,13 +23,11 @@
 
 - name: Set up unix user accounts
   hosts: server_instances
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   tasks:
     - name: Create source user
@@ -50,34 +48,24 @@
 - name: Install standard packages
   hosts: server_instances
   gather_facts: no
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
-
-  tasks:
-    - name: Install https support for apt
-      apt:
-        update_cache: yes
-        name:
-        - apt-transport-https
-        state: latest
-
-    - name: Upgrade apt packages to the latest version
-      apt:
-        upgrade: dist
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
     - name: Add nodesource signing key
       apt_key:
-        url: https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
+        url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
         id: 68576280
 
     - name: Add nodesource apt repository
       apt_repository:
-        repo: deb https://deb.nodesource.com/node_6.x xenial main
+        repo: deb https://deb.nodesource.com/node_10.x focal main
+
+    - name: Upgrade apt packages to the latest version
+      apt:
+        upgrade: dist
 
     - name: Install apt packages
       apt:
@@ -86,16 +74,16 @@
         - build-essential
         - nginx
         - uwsgi
-        - uwsgi-plugin-python
+        - uwsgi-plugin-python3
         - nodejs
         - git
         - libfontconfig1
         - logrotate
         - vim
-        - bash-completion
         state: latest
+        autoremove: yes
 
-    - name: Create apache-style nginx configuration directories
+    - name: Create Apache-style nginx configuration directories
       file:
         path: "{{ item }}"
         state: directory
@@ -133,13 +121,11 @@
 
 - name: Pull and build project code
   hosts: server_instances
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   roles:
     - role: nodeproject
@@ -171,15 +157,13 @@
 
 - name: Link pencilcode service directories
   hosts: tag_webserver
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files:
 #    - vars/secrets.yml
     - vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   pre_tasks:
     - file: path=/mnt/datadisk/{{ item }} state=directory mode=755
@@ -216,13 +200,11 @@
 
 - name: Setup fishs service
   hosts: server_instances
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   roles:
     - role: nodeproject
@@ -254,15 +236,13 @@
 
 - name: Setup main pencilcode repository
   hosts: server_instances
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files:
 #    - vars/secrets.yml
     - vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   roles:
     - role: nodeproject
@@ -342,13 +322,11 @@
 
 - name: Set up logrotate configuration
   hosts: server_instances
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   tasks:
     - copy: src=files/logrotate/{{ item }} dest=/etc/logrotate.d/{{ item }}
@@ -364,13 +342,11 @@
 
 - name: Ensure all services are started
   hosts: server_instances
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   tasks:
     - name: enable sysv services
