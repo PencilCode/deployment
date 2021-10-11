@@ -17,51 +17,53 @@
       register: address
 
     # Template to generate instances from (for load balancing spin-up / down)
-    - name: Create instance template
-      gcp_compute_instance_template:
-        name: "{{ gcp_web_template }}"
-        properties:
-          machine_type: "{{ gcp_web_machine_type }}"
-          disks:
+    - name: Create instances
+      gcp_compute_instance:
+        name: "{{ gcp_web_instance }}-{{ item }}"
+        machine_type: "{{ gcp_web_machine_type }}"
+        disks:
           - auto_delete: 'true'
             boot: 'true'
             initialize_params:
+              disk_name: "{{ gcp_web_disk }}-{{ item }}"
               source_image: "{{ gcp_web_image }}"
           - auto_delete: 'false'
             boot: 'false'
-            device_name: "{{ gcp_web_instance }}-log"
+            device_name: "{{ gcp_web_disk }}-{{ item }}-log"
             initialize_params:
+              disk_name: "{{ gcp_web_disk }}-{{ item }}-log"
               disk_size_gb: 20
-          metadata:
-            enable-oslogin: True
-          network_interfaces:
-            - access_configs:
-              - name: 'External NAT'
-                type: ONE_TO_ONE_NAT
-                nat_ip: "{{ address }}"
-          tags:
-            items: webserver,http-server,https-server
-        project: "{{ gcp_project }}" 
-        auth_kind: "{{ gcp_cred_kind }}"
-        service_account_file: "{{ gcp_cred_file }}"
-        scopes: "{{ gcp_scopes }}"
-        state: present
-      register: instancetemplate
-
-    # Instance manager (which will work with the backend to manage instances)
-    - name: Create instance group manager
-      gcp_compute_instance_group_manager:
-        name: "{{ gcp_web_group }}"
-        base_instance_name: "{{ gcp_web_instance }}"
-        instance_template: "{{ instancetemplate }}"
-        target_size: "{{ gcp_web_group_size }}"
+        metadata:
+          enable-oslogin: True
+        network_interfaces:
+          - access_configs:
+            - name: 'External NAT'
+              nat_ip: "{{ address }}"
+              type: 'ONE_TO_ONE_NAT'
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}" 
         auth_kind: "{{ gcp_cred_kind }}"
         service_account_file: "{{ gcp_cred_file }}"
         scopes: "{{ gcp_scopes }}"
         state: present
-      register: instancegroupmanager
+        tags:
+          items: webserver,http-server,https-server
+      loop: "{{ range(0, 2) | list }}"
+      register: instancedata
+
+    - name: Create instance group
+      google.cloud.gcp_compute_instance_group:
+        name: "{{ ansible_web_group }}"
+        instances: instancedata.results
+        network: "{{ network }}"
+        zone: "{{ gcp_zone }}"
+        project: "{{ gcp_project }}" 
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        scopes: "{{ gcp_scopes }}"
+        state: present
+      register: instancegroup
+
 
     # Specification for checking on the health of the servers
     - name: Create HTTP health check
@@ -82,7 +84,7 @@
       gcp_compute_backend_service:
         name: "{{ gcp_web_service }}"
         backends:
-        - group: "{{ instancegroupmanager.instanceGroup }}"
+        - group: "{{ instancegroup }}"
         health_checks:
         - "{{ healthcheck.selfLink }}"
         project: "{{ gcp_project }}"
@@ -91,6 +93,7 @@
         scopes: "{{ gcp_scopes }}"
       register: webservice
 
+  post_tasks:
     # TODO: Make sure we wait for all instances to be created. (Something might be delaying them...)
     # Once the instances have spun up (intially), gather info on them.
     - name: Gather data on instances in group
@@ -142,32 +145,10 @@
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   tasks:
-    - name: Make ansible service account credential directory
-      file:
-        path: "{{ gcp_cred_file | dirname }}"
-        state: directory
 
-    - name: Copy over ansible service account credential file
-      copy:
-        src: "{{ gcp_cred_file }}"
-        dest: "{{ gcp_cred_file }}"
-
-    - name: Create SSH key directory (if it doesn't exist yet)
-      file:
-        path: "/home/{{ gcp_service_user }}/.ssh"
-        owner: "{{ gcp_service_user }}"
-        state: directory
-
-    - name: Copy service account private SSH key
-      copy:
-        src: "{{ ansible_ssh_private_key_file }}"
-        mode: 400
-        owner: "{{ gcp_service_user }}"
-        dest: "/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
-    
     - name: Set up filesystem for log disks
       filesystem:
         fstype: ext4
