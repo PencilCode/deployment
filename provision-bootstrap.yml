@@ -111,7 +111,6 @@
       apt_repository:
         repo: deb https://deb.nodesource.com/node_10.x focal main
 
-
     - name: Upgrade apt packages to the latest version
       apt:
         upgrade: dist
