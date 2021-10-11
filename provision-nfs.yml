@@ -43,10 +43,10 @@
         metadata:
           enable-oslogin: True
         network_interfaces:
-           - access_configs:
-              - name: 'External NAT'
-                nat_ip: "{{ address }}"
-                type: 'ONE_TO_ONE_NAT'
+          - access_configs:
+            - name: 'External NAT'
+              nat_ip: "{{ address }}"
+              type: 'ONE_TO_ONE_NAT'
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_kind }}"
@@ -77,16 +77,6 @@
     - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   tasks:
-    - name: Make ansible service account credential directory
-      file:
-        path: "{{ gcp_cred_file | dirname }}"
-        state: directory
-
-    - name: Copy over ansible service account credential file
-      copy:
-        src: "{{ gcp_cred_file }}"
-        dest: "{{ gcp_cred_file }}"
-
     - name: Set up filesystem for log disks
       filesystem:
         fstype: ext4
