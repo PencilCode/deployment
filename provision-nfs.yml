@@ -90,16 +90,19 @@
 
     - name: Create SSH key directory (if it doesn't exist yet)
       file:
-        path: "/home/{{ gcp_service_user }}/.ssh"
-        owner: "{{ gcp_service_user }}"
+        path: "/home/{{ ansible_user }}/.ssh"
+        owner: "{{ ansible_user }}"
         state: directory
 
     - name: Copy service account private SSH key
       copy:
-        src: "{{ ansible_ssh_private_key_file }}"
+        src: "{{ item }}"
         mode: 400
-        owner: "{{ gcp_service_user }}"
-        dest: "/home/{{ gcp_service_user }}/.ssh/{{ gcp_service_user }}"
+        owner: "{{ ansible_user }}"
+        dest: "/home/{{ ansible_user }}/.ssh/"
+      loop:
+#        - "{{ lookup('env', 'HOME') }}/.ssh/{{ gcp_admin_key_file }}"
+        - "{{ lookup('env', 'HOME') }}/.ssh/{{ gcp_service_key_file }}"
 
     - name: Set up filesystem for log disks
       filesystem:
