@@ -44,11 +44,14 @@ gcp_main_branch: pencil-io
 
 # User / Permissions Information
 # ------------------------------
-# gcp_admin_user:	google username of the administrator who will connect to the bootstrap instance.
 # gcp_service_user:	service account username for this project (key for user should be in "~/.ssh/gcp_service_user" file)
 # gcp_scopes:		permissions for this instance
-gcp_admin_user: someadminusername
+gcp_admin_key_file: google_compute_engine
+gcp_service_key_file: ansible-service
+
+gcp_service_email: ansible-service@pencil-io.iam.gserviceaccount.com
 gcp_service_user: ansible-service
+
 gcp_scopes:
  - https://www.googleapis.com/auth/cloud-platform
    https://www.googleapis.com/auth/compute
