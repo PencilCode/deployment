@@ -76,15 +76,17 @@
         dest: "{{ gcp_cred_file }}"
 
     - name: Create SSH key directory (if it doesn't exist yet)
+      become: false
       file:
         path: "/home/{{ ansible_user }}/.ssh/"
         owner: "{{ ansible_user }}"
         state: directory
 
     - name: Copy private SSH keys
+      become: false
       copy:
         src: "{{ item }}"
-        mode: 400
+        mode: 0400
         owner: "{{ ansible_user }}"
         dest: "/home/{{ ansible_user }}/.ssh/"
       loop:
@@ -142,6 +144,7 @@
           - pyopenssl
 
     - name: Sync latest deployment scripts
+      become: false
       git:
         repo: https://github.com/PencilCode/deployment
         dest: "/home/{{ ansible_user }}/deployment"

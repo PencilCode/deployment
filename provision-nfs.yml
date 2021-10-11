@@ -54,6 +54,7 @@
         scopes: "{{ gcp_scopes }}"
       register: instance
 
+  post_tasks:
     - name: Wait for SSH to come up
       wait_for: host={{ address.address }} port=22 delay=5 timeout=120
 
@@ -69,13 +70,11 @@
 
 - name: Set up disks
   hosts: launched
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
   vars:
-    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_service_user }}"
+    - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   tasks:
     - name: Make ansible service account credential directory
@@ -87,22 +86,6 @@
       copy:
         src: "{{ gcp_cred_file }}"
         dest: "{{ gcp_cred_file }}"
-
-    - name: Create SSH key directory (if it doesn't exist yet)
-      file:
-        path: "/home/{{ ansible_user }}/.ssh"
-        owner: "{{ ansible_user }}"
-        state: directory
-
-    - name: Copy service account private SSH key
-      copy:
-        src: "{{ item }}"
-        mode: 400
-        owner: "{{ ansible_user }}"
-        dest: "/home/{{ ansible_user }}/.ssh/"
-      loop:
-#        - "{{ lookup('env', 'HOME') }}/.ssh/{{ gcp_admin_key_file }}"
-        - "{{ lookup('env', 'HOME') }}/.ssh/{{ gcp_service_key_file }}"
 
     - name: Set up filesystem for log disks
       filesystem:
@@ -176,11 +159,12 @@
 
 - name: Set up nfs
   hosts: launched
-  connection: ssh
   gather_facts: no 
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
+
+   vars:
+     - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
 
   roles:
     - role: geerlingguy.nfs
@@ -188,28 +172,16 @@
         - /data *(rw,sync,no_subtree_check)
         - /backup *(ro,sync,no_subtree_check)
 
-- name: Disable mlocate
-  hosts: launched
-  connection: ssh
-  gather_facts: no
-  remote_user: "{{ gcp_service_user }}"
-  become: yes
-  vars_files: vars/gcp_config.yml
-
-  tasks:
-    - name: Change permission of cron.daily mlocate to disable execution.
-      file:
-        path: "/etc/cron.daily/mlocate"
-        mode: "a-x"
 
 - name: Set up rsnapshot
   hosts: launched
-  connection: ssh
   gather_facts: no
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
   
+   vars:
+     - ansible_ssh_private_key_file: "~/.ssh/{{ gcp_admin_key_file }}"
+
   tasks:
     - name: Install rsnapshot
       apt:
