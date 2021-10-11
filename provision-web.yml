@@ -5,17 +5,6 @@
   vars_files: vars/gcp_config.yml
 
   tasks:
-    # Outside-facing address for load balancer
-    - name: Create address
-      gcp_compute_address:
-        name: "{{ gcp_web_address }}"
-        region: "{{ gcp_region }}"
-        project: "{{ gcp_project }}"
-        auth_kind: "{{ gcp_cred_kind }}"
-        service_account_file: "{{ gcp_cred_file }}"
-        scopes: "{{ gcp_scopes }}"
-      register: address
-
     # Template to generate instances from (for load balancing spin-up / down)
     - name: Create instances
       gcp_compute_instance:
@@ -24,12 +13,13 @@
         disks:
           - auto_delete: 'true'
             boot: 'true'
+            device_name: "{{ gcp_web_disk }}"
             initialize_params:
               disk_name: "{{ gcp_web_disk }}-{{ item }}"
               source_image: "{{ gcp_web_image }}"
           - auto_delete: 'false'
             boot: 'false'
-            device_name: "{{ gcp_web_disk }}-{{ item }}-log"
+            device_name: "{{ gcp_web_disk }}-log"
             initialize_params:
               disk_name: "{{ gcp_web_disk }}-{{ item }}-log"
               disk_size_gb: 20
@@ -38,7 +28,6 @@
         network_interfaces:
           - access_configs:
             - name: 'External NAT'
-              nat_ip: "{{ address }}"
               type: 'ONE_TO_ONE_NAT'
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}" 
@@ -48,13 +37,13 @@
         state: present
         tags:
           items: webserver,http-server,https-server
-      loop: "{{ range(0, 2) | list }}"
-      register: instancedata
+      loop: "{{ range(0, gcp_web_group_size) | list }}"
+      register: instances
 
     - name: Create instance group
       google.cloud.gcp_compute_instance_group:
-        name: "{{ ansible_web_group }}"
-        instances: instancedata.results
+        name: "{{ gcp_web_group }}"
+        instances: "{{ instances.results }}"
         network: "{{ network }}"
         zone: "{{ gcp_zone }}"
         project: "{{ gcp_project }}" 
@@ -84,7 +73,7 @@
       gcp_compute_backend_service:
         name: "{{ gcp_web_service }}"
         backends:
-        - group: "{{ instancegroup }}"
+        - group: "{{ instancegroup.selfLink }}"
         health_checks:
         - "{{ healthcheck.selfLink }}"
         project: "{{ gcp_project }}"
@@ -108,21 +97,11 @@
       register: instancedata
 
     # Make sure the machines are booted before doing anything else
-    - name: Wait for service SSH to come up
-      wait_for: host={{ address.address }} port=22 delay=5 timeout=120
-
-    # NOTE: instances won't work remotely - this must be done from the instance's network!
     - name: Wait for SSH of instances to come up
       wait_for: host={{ item.name }} port=22 delay=5 timeout=120
       with_items: "{{ instancedata.resources }}"
 
     # Set up SSH files / variables / etc
-    - name: Reset known-hosts for service IP
-      command: ssh-keygen -R {{ address.address }}
-
-    - name: Add the new service as a known host
-      shell: ssh-keyscan {{ address.address }} >> ~/.ssh/known_hosts
-
     - name: Reset known-hosts for instance IPs
       command: ssh-keygen -R {{ item.name }}
       with_items: "{{ instancedata.resources }}"
@@ -139,8 +118,6 @@
 # Set up the the disks for the instances.
 - name: Set up disks
   hosts: launched
-  connection: ssh
-  remote_user: "{{ gcp_service_user }}"
   become: yes
   vars_files: vars/gcp_config.yml
 
@@ -152,14 +129,14 @@
     - name: Set up filesystem for log disks
       filesystem:
         fstype: ext4
-        dev: /dev/disk/by-id/google-{{ gcp_web_instance }}-log
+        dev: /dev/disk/by-id/google-{{ gcp_web_disk }}-log
         opts: "-E lazy_itable_init=0,lazy_journal_init=0,discard"
 
     - name: Mount log disks
       mount:
         path: /var/log
         fstype: ext4
-        src: /dev/disk/by-id/google-{{ gcp_web_instance }}-log
+        src: /dev/disk/by-id/google-{{ gcp_web_disk }}-log
         state: mounted
       notify: restart rsyslog
 

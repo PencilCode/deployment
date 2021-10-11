@@ -23,14 +23,13 @@ gcp_nfs_machine_type: n1-standard-1
 
 # Instance Group Information - Web VMs
 gcp_web_address: ansible-web-address
-gcp_web_template: anisble-web-template
+gcp_web_instance: ansible-web-instance
 gcp_web_disk: ansible-web-disk
 gcp_web_image: 'https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210325'
 gcp_web_machine_type: n1-standard-1
 
-gcp_web_instance: ansible-web-instance
 gcp_web_group: ansible-web-group
-gcp_web_group_size: 3
+gcp_web_group_size: 2
 
 # Backend / Load-Balancing Information - Web VMs
 gcp_web_healthcheck: ansible-web-healthcheck
